@@ -9,6 +9,9 @@ execution of the debuggee.  Those who have used GDB for C/C++ will find
 many similarities, but no such background is assumed.  (Note:  RStudio,
 ESS and statet all have nice debugging tools.)
 
+Note that **an additional of goal of this package is to teach good
+debugging habits.**  This feature will be developed over time.
+
 The tool currently needs a Linux or other Unix-family environment, e.g. Macs. 
 It should work on Cygwin.  (We may have a Windows version in the future.)
 Python is also required.
