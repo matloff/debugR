@@ -1,0 +1,16 @@
+Package: debugR
+Version: 1.0.0
+Author: Norm Matloff <normmatloff@gmail.com> [cre,aut], 
+    Matthew Kotila <mrkotila@ucdavis.edu> [aut], Aaron Kaloti
+    <apksingh@ucdavis.edu> [aut]
+Maintainer: Norm Matloff <normmatloff@gmail.com>
+Title: R Debugging -- a Tool and a Tutorial
+Description: Sophisticated debugging tool for R code, with advanced,
+   novel features.  General tutorial on techniques for debugging.
+Depends: stats,utils
+Suggests: 
+ByteCompile: yes
+NeedsCompilation: no
+License: GPL (>= 2)
+URL: https://github.com/matloff/debugR
+BugReports: https://github.com/matloffdebugR/issues
