@@ -1,14 +1,16 @@
 Package: debugR
-Version: 1.0.0
-Author: Norm Matloff <normmatloff@gmail.com> [cre,aut], 
-    Matthew Kotila <mrkotila@ucdavis.edu> [aut], Aaron Kaloti
-    <apksingh@ucdavis.edu> [aut]
-Maintainer: Norm Matloff <normmatloff@gmail.com>
+Version: 0.1
 Title: R Debugging -- a Tool and a Tutorial
-Description: Sophisticated debugging tool for R code, with advanced,
-   novel features.  General tutorial on techniques for debugging.
+Authors@R: c(person("Norm", "Matloff", email = "normmatloff@gmail.com",
+                    role = c("aut", "cre")),
+             person("Matthew", "Kotila", email = "mrkotila@ucdavis.edu",
+                    role = c("aut")),
+             person("Aaron", "Kaloti", email = "apksingh@ucdavis.edu",
+                    role = c("aut")))
+Maintainer: Norm Matloff <normmatloff@gmail.com>
+Description: Sophisticated debugging tool for R code, with advanced and
+             novel features. General tutorial on techniques for debugging.
 Depends: stats,utils
-Suggests: 
 ByteCompile: yes
 NeedsCompilation: no
 License: GPL (>= 2)
