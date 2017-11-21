@@ -487,6 +487,10 @@ def initcursesthings():
    gb.msgline = gb.winlen + 2
    gb.scrn.refresh()
 
+def cleancursesthings():
+   curses.nocbreak()
+   curses.endwin()
+
 def errormsg(err):
    blankline(gb.msgline)
    gb.scrn.addstr(gb.msgline,0,err)
@@ -588,7 +592,10 @@ def main():
       # check for End Session command (stops R, screen and exits Python)
       elif cmd == 'es': 
          sendtoscreen('quit()')
+         sendtoscreen('killall screen')
+         sendtoscreen('screen -wipe')
          sendtoscreen('exit')
+         cleancursesthings()
          break
       elif cmd == 'h':
          dohelp()
