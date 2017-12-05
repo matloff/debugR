@@ -1,32 +1,32 @@
 # this is the R version of debugR.py
 
 # all globals packaged here
-gb.scrn <- NA  # will point to window object
-gb.row <- NA  # current row position of cursor within window
-gb.src <- NA  # handle for the current source file
-gb.srclen <- NA  # length in lines of the current source file
-gb.winlen <- NA  # length in lines of the window
-gb.winwid <- NA  # width in characters of the window
-gb.srclines <- NA  # contents of source file, list of strings, 1 per src line
-gb.maxdigits <- NA  # number of digits in the longest line number
-gb.firstdisplayedlineno <- NA  # source line number now displayed at top of window; starts at 0
-gb.currsrcfilename <- NA  # name of source file currently in window
-gb.nextlinenum <- NA  # source line number to be executed next; starts at 0
-gb.ftns <- NA  # dictionary of function line numberss, indexed by function name
-gb.debuggeecall <- NA  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
+gb.scrn <- NULL  # will point to window object
+gb.row <- NULL  # current row position of cursor within window
+gb.src <- NULL  # handle for the current source file
+gb.srclen <- NULL  # length in lines of the current source file
+gb.winlen <- NULL  # length in lines of the window
+gb.winwid <- NULL  # width in characters of the window
+gb.srclines <- NULL  # contents of source file, list of strings, 1 per src line
+gb.maxdigits <- NULL  # number of digits in the longest line number
+gb.firstdisplayedlineno <- NULL  # source line number now displayed at top of window; starts at 0
+gb.currsrcfilename <- NULL  # name of source file currently in window
+gb.nextlinenum <- NULL  # source line number to be executed next; starts at 0
+gb.ftns <- NULL  # dictionary of function line numberss, indexed by function name
+gb.debuggeecall <- NULL  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
 gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
-gb.papcmd <- NA  # expression to be printed at each pause (after n/s/c cmd)
-gb.msgline <- NA  # line in window where messages are printed
-gb.ds <- NA  # file handle for dbgsink file
-gb.bpconds <- NA  # dictionary of breakpoints
-gb.prevcmd <- NA  # last user command
+gb.papcmd <- NULL  # expression to be printed at each pause (after n/s/c cmd)
+gb.msgline <- NULL  # line in window where messages are printed
+gb.ds <- NULL  # file handle for dbgsink file
+gb.bpconds <- NULL  # dictionary of breakpoints
+gb.prevcmd <- NULL  # last user command
 gb.helpfile <- FALSE
 
 # comment
 debugR <- function(filename) {
 
     # load 'library'
-    source('rcurses.R')
+    source('rcurses2.R')
 
     # initialize rcurses environment
     initcursesthings()
@@ -36,9 +36,6 @@ debugR <- function(filename) {
 
     # initialize global variables related to source code
     initsrcthings()
-
-    addstr(25,0,'a')
-    quit()
 
     # one iteration of this loop handles one user command, e.g. one
     # "continue" or one "next"
@@ -50,22 +47,20 @@ debugR <- function(filename) {
         # text for the help bar
         helpbar <- paste0(rep(' ',tmp),' h for help ',rep(' ',tmp))
 
-        write(helpbar)
-
         # put the help bar on the screen
-        addstr(gb.winlen,0,helpbar,A_REVERSE())
+        addstr(gb.scrn,helpbar,gb.winlen,0,A_REVERSE)
 
         # comment
-        addstr(gb.winlen + 1,0,rep(' ',gb.winwid - 1))
+        addstr(gb.scrn,rep(' ',gb.winwid - 1),gb.winlen + 1,0)
 
         # comment
-        move(gb.winlen + 1,0)
+        move(gb.scrn,gb.winlen + 1,0)
 
         #comment
-        cmd <- getstr()
+        cmd <- getstr(gb.scrn)
 
         # if user simply hits Enter, then re-do previous command
-        if (cmd == '' && is.na(gb.prevcmd) == FALSE) {
+        if (cmd == '' && is.character(gb.prevcmd)) {
             cmd <- gb.prevcmd
         }
 
@@ -85,79 +80,79 @@ debugR <- function(filename) {
         }
 
         # check for Undebug Ftn command
-        else if (cmd[1:3] == 'udf') {
+        else if (substr(cmd,1,3) == 'udf') {
             dodf(cmd)
         }
 
         # check for Set Breakpoint command
-        else if (cmd[1:2] == 'bp') {
+        else if (substr(cmd,1,2) == 'bp') {
             dobp(cmd)
         }
 
         # check for Unset Breakpoint command
-        else if (cmd[1:3] == 'ubp') {
+        else if (substr(cmd,1,3) == 'ubp') {
             doubp(cmd)
         }
 
         # check for Run command
-        else if (cmd[1:2] == 'rn') {
+        else if (substr(cmd,1,2) == 'rn') {
             dorun(cmd)
         }
 
         # check for Print at Pause command
-        else if (cmd[1:3] == 'pap') {
+        else if (substr(cmd,1,3) == 'pap') {
             dopap(cmd)
         }
 
         # check for Undo Print at Pause command
-        else if (cmd[1:4] == 'upap') {
+        else if (substr(cmd,1,4) == 'upap') {
             gb.papcmd <<- ''
         }
 
         # check for Print command
-        else if (cmd[1] == 'p') {
+        else if (substr(cmd,1,1) == 'p') {
             doprint(cmd)
         }
 
         # check for Print to Console command
-        else if (cmd[1:2] == 'pc') {
+        else if (substr(cmd,1,2) == 'pc') {
             doprint(cmd)
         }
 
         # check for Print to Console at Pause command
-        else if (cmd[1:4] == 'pcap') {
+        else if (substr(cmd,1,4) == 'pcap') {
             dopap(cmd)
         }
 
         # check for Undo Print to Console at Pause command
-        else if (cmd[1:5] == 'upcap') {
+        else if (substr(cmd,1,5) == 'upcap') {
             gb.papcmd <<- ''
         }
 
         # check for Source Reload command
-        else if (cmd[1:2] == 'rl') {  # tell R to reload current source file
+        else if (substr(cmd,1,2) == 'rl') {  # tell R to reload current source file
             doreloadsrc()
         }
 
         # check for scrolling
-        else if (cmd[1:4] == 'down') {
+        else if (substr(cmd,1,4) == 'down') {
             dodown()
         }
 
         # comment
-        else if (cmd[1:2] == 'up') {
+        else if (substr(cmd,1,2) == 'up') {
             doup()
         }
 
         # (re)load source file
-        else if (cmd[1:2] == 'ls') {
+        else if (substr(cmd,1,2) == 'ls') {
 
             # comment
             cmdsplit <- strsplit(cmd,' ')
 
             # comment
             if (nchar(cmdsplit) > 1) {
-                gb.currsrcfilename <<- strsplit(cmd,' ')[1]
+                gb.currsrcfilename <<- strsplit(cmd,' ')[[1]][2]
             }
 
             # comment
@@ -168,17 +163,17 @@ debugR <- function(filename) {
         }
 
         # quit R browser
-        else if (cmd[1] == 'Q') {
+        else if (substr(cmd,1,1) == 'Q') {
             doquitbrowser()
         }
 
         # check for End Session command (stops R, screen and exits Python)
-        else if (cmd[1:2] == 'es') {
+        else if (substr(cmd,1,2) == 'es') {
             quit()
         }
 
         # display help information
-        else if (cmd[1] == 'h') {
+        else if (substr(cmd,1,1) == 'h') {
             dohelp()
         }
 
@@ -192,12 +187,12 @@ debugR <- function(filename) {
     }
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # comment
 sendtoscreen <- function(cmd) {
-    print('sendtoscreen')
+    w(match.call()[[1]])
 
     # illegal parameter(s)
     if (is.character(cmd) == FALSE) { p(cmd); quit() }
@@ -205,59 +200,59 @@ sendtoscreen <- function(cmd) {
     system(cmd)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # initialize rcurses environment
 initcursesthings <- function() {
-    print('initcursesthings')
+    w(match.call()[[1]])
 
     # initializes the screen for rcurses
-    initscr()
+    gb.scrn <<- initscr()
 
     # disables line buffering and erase/kill character-processing
     cbreak()
 
     # screen will be cleared on next call to refresh
-    clear()
+    clear(gb.scrn)
 
     # allows support of color attributes on terminals
     start_color()
 
     # initialize color pair for source code line that has a breakpoint
-    init_pair(1,COLOR_BLACK(),COLOR_RED())
+    init_pair(1,COLOR_BLACK,COLOR_RED)
 
     # initialize color pair for source code line that's the current line
-    init_pair(2,COLOR_BLACK(),COLOR_GREEN())
+    init_pair(2,COLOR_BLACK,COLOR_GREEN)
 
     # initialize color pair for source code line that's current and breakpoint
-    init_pair(3,COLOR_BLACK(),COLOR_YELLOW())
+    init_pair(3,COLOR_BLACK,COLOR_YELLOW)
 
     # initialize color pair for remaining source code
-    init_pair(8,COLOR_BLACK(),COLOR_WHITE())
+    init_pair(8,COLOR_BLACK,COLOR_WHITE)
 
     # set background color pair
-    bkgd(utf8ToInt(' '),color_pair(8))
+    bkgd(gb.scrn,' ',color_pair(8))
 
     # other inits leave 3 lines for console, including border with src panel
-    gb.winlen <<- LINES() - 3
+    gb.winlen <<- LINES - 3
 
     # comment
-    gb.winwid <<- COLS()
+    gb.winwid <<- COLS
 
     # comment
     gb.msgline <<- gb.winlen + 2
 
     # comment
-    refresh()
+    refresh(gb.scrn)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # initialize various globals dealing with the source file
 initsrcthings <- function() {
-    print('initsrcthings')
+    w(match.call()[[1]])
 
     # comment
     gb.nextlinenum <<- 1
@@ -272,14 +267,14 @@ initsrcthings <- function() {
     dispsrc(gb.nextlinenum)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # this function reads in the source file from disk, and copies it to the
 # list gb.srclines, with each source file being prepended by the line
-# number 
+# number
 inputsrc <- function(filename) {
-    print('inputsrc')
+    w(match.call()[[1]])
 
     # comment
     lns <- readLines(filename)
@@ -291,10 +286,10 @@ inputsrc <- function(filename) {
     gb.maxdigits <<- ndigs(length(lns) + 1)
 
     # location of 'N', if any
-    gb.Nplace <<- gb.maxdigits + 1
+    gb.Nplace <<- gb.maxdigits + 2
 
     # location of 'D', if any
-    gb.Dplace <<- gb.maxdigits + 2
+    gb.Dplace <<- gb.maxdigits + 3
 
     # comment
     lnno <- 1
@@ -303,54 +298,51 @@ inputsrc <- function(filename) {
     gb.srclines <<- list()
 
     # comment
-    for (l in lns) {
+    for (lineNum in 1:length(lns)) {
 
         # form the line number, with blanks instead of leading 0s
-        ndl <- ndigs(lnno)
+        ndl <- ndigs(lineNum)
 
         # comment
-        tmp <- rep(utf8ToInt(' '),gb.maxdigits - ndl)
+        tmp <- rep(' ',gb.maxdigits - ndl)
 
         # comment
-        tmp <- paste0(tmp,toString(lnno),' ')
+        tmp <- paste0(tmp,toString(lineNum),' ')
 
         # add room for N marker for next executed and D/B for breakpoint
         tmp <- paste0(tmp,'   ')
 
         # now add the source line itself, truncated to fit the window
         # width, if necessary
-        tmp <- paste0(tmp,l)
+        tmp <- paste0(tmp,lns[lineNum])
 
         # comment
         ntrunclinechars <- min(gb.winwid,nchar(tmp))
 
         # comment
         gb.srclines <<- append(gb.srclines,substr(tmp,1,ntrunclinechars))
-
-        # comment
-        lnno <- lnno + 1
     }
 
     # comment
     dispsrc(1)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # finds the number of decimal digits in n
 ndigs <- function(n) {
-    print('ndigs')
+    w(match.call()[[1]])
     return(nchar(toString(n)))
 }
 
 # this function displays the current source file, starting at the top of
 # the screen, and beginning with the row srcstartrow in gb.srclines
 dispsrc <- function(srcstartrow) {
-    print('dispsrc')
+    w(match.call()[[1]])
 
     # comment
-    clear()
+    clear(gb.scrn)
 
     # comment
     winrow <- 0
@@ -366,23 +358,23 @@ dispsrc <- function(srcstartrow) {
 
             # comment
             if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-                paintcolorline(winrow,gb.srclines[[i]],curses.color_pair(3))
+                paintcolorline(winrow,gb.srclines[[i]],color_pair(3))
             }
 
             # comment
             else {
-                paintcolorline(winrow,gb.srclines[[i]],curses.color_pair(2))
+                paintcolorline(winrow,gb.srclines[[i]],color_pair(2))
             }
         }
 
         # comment
         else if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-            paintcolorline(winrow,gb.srclines[[i]],curses.color_pair(1))
+            paintcolorline(winrow,gb.srclines[[i]],color_pair(1))
         }
 
         # comment
         else {
-            addstr(winrow,0,gb.srclines[[i]])
+            addstr(gb.scrn,gb.srclines[[i]],winrow,0)
         }
 
         # comment
@@ -393,24 +385,24 @@ dispsrc <- function(srcstartrow) {
     gb.firstdisplayedlineno <<- srcstartrow
 
     # comment
-    refresh()
+    refresh(gb.scrn)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # paints a row in the screen, in the designated color
 paintcolorline <- function(winrow,whattopaint,colorpair) {
-    print('paintcolorline')
+    w(match.call()[[1]])
 
     # comment
-    whattopaint <- paste0(whattopaint,rep(' ',gb.winwid - 1 - nchar(whattopaint)))
+    whattopaint <- paste0(whattopaint,strrep(' ',as.integer(gb.winwid - nchar(whattopaint))))
 
     # comment
-    addstr(winrow,0,whattopaint,colorpair)
+    addstr(gb.scrn,whattopaint,winrow,0,colorpair)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # substitutes s starting at linepos in line lineno of gb.srclines; this
@@ -418,22 +410,19 @@ paintcolorline <- function(winrow,whattopaint,colorpair) {
 # currently off the screen; mainly used to add an 'N' or 'D' designation
 # in a source line
 rplcsrcline <- function(lineno,linepos,s) {
-    print('rplcsrcline')
+    w(match.call()[[1]])
 
-    # comment
-    tmp <- gb.srclines[[lineno]]
-
-    # comment
-    gb.srclines[[lineno]] <- rplc(tmp,linepos,s)
+    # add s into source line lineno at position linepos
+    gb.srclines[[lineno]] <<- rplc(gb.srclines[[lineno]],linepos,s)
 
     # manadatory return statement
-    return(NA)
+    return(NULL)
 }
 
 # utility; in string s at position k, replace by string r, presumed to
 # be the same length as s; new string is returned
 rplc <- function(s,k,r) {
-    print('rplc')
+    w(match.call()[[1]])
 
     # grab first k - 1 characters of string
     front <- substr(s,1,k - 1)
@@ -443,11 +432,6 @@ rplc <- function(s,k,r) {
 
     # return concatenation
     return(paste0(front,r,back))
-}
-
-# prints a variable's name followed by its value
-p <- function(x) {
-    print(paste0(deparse(substitute(x)),': ',x))
 }
 
 debugR('a.R')
