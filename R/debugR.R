@@ -26,7 +26,7 @@ gb.helpfile <- FALSE
 debugR <- function(filename) {
 
     # load 'library'
-    source('rcurses2.R')
+    source('rcurses.R')
 
     # initialize rcurses environment
     initcursesthings()
@@ -396,7 +396,7 @@ paintcolorline <- function(winrow,whattopaint,colorpair) {
     w(match.call()[[1]])
 
     # comment
-    whattopaint <- paste0(whattopaint,strrep(' ',as.integer(gb.winwid - nchar(whattopaint))))
+    whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
 
     # comment
     addstr(gb.scrn,whattopaint,winrow,0,colorpair)
