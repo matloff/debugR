@@ -22,13 +22,28 @@ gb.bpconds <- NULL  # dictionary of breakpoints
 gb.prevcmd <- NULL  # last user command
 gb.helpfile <- FALSE
 
-# comment
+# sends the command cmd to the "screen session", thus typically to R
+sendtoscreen <- function(cmd) {
+    cmd <- paste(cmd, '\n', sep="")
+    tosend <- paste('screen -S "rdebug" -X stuff "', cmd, '" ', sep="")
+    system(tosend)
+}
+
 debugR <- function(filename) {
+    suppressMessages(library(rcurses))
 
-    # load 'library'
-    source('rcurses.R')
+    tmp <- system('screen -ls | grep rdebug')
+    if (tmp == 0) {
+        cat('rdebug screen running\n')
+        cat('kill screen process, then run "screen -wipe"\n')
+        return(NULL)
+    }
 
-    # initialize rcurses environment
+    # start "screen, with name 'rdebug' for now
+    system('xterm -e "screen -S \'rdebug\'" &')
+    # start R within screen
+    Sys.sleep(3)
+    sendtoscreen('R --no-save -q')
     initcursesthings()
 
     # save the file name in a global variable
@@ -48,16 +63,15 @@ debugR <- function(filename) {
         helpbar <- paste0(rep(' ',tmp),' h for help ',rep(' ',tmp))
 
         # put the help bar on the screen
-        addstr(gb.scrn,helpbar,gb.winlen,0,A_REVERSE)
+        rcurses.addstr(gb.scrn,helpbar,gb.winlen,0,rcurses.A_REVERSE)
 
         # comment
-        addstr(gb.scrn,rep(' ',gb.winwid - 1),gb.winlen + 1,0)
+        rcurses.addstr(gb.scrn,rep(' ',gb.winwid - 1),gb.winlen + 1,0)
 
         # comment
-        move(gb.scrn,gb.winlen + 1,0)
+        rcurses.move(gb.scrn,gb.winlen + 1,0)
 
-        #comment
-        cmd <- getstr(gb.scrn)
+        cmd <- rcurses.getstr(gb.scrn)
 
         # if user simply hits Enter, then re-do previous command
         if (cmd == '' && is.character(gb.prevcmd)) {
@@ -169,7 +183,12 @@ debugR <- function(filename) {
 
         # check for End Session command (stops R, screen and exits Python)
         else if (substr(cmd,1,2) == 'es') {
-            quit()
+            sendtoscreen('quit()')
+            sendtoscreen('killall screen')
+            sendtoscreen('screen -wipe')
+            sendtoscreen('exit')
+            cleancursesthings()
+            break
         }
 
         # display help information
@@ -208,46 +227,51 @@ initcursesthings <- function() {
     w(match.call()[[1]])
 
     # initializes the screen for rcurses
-    gb.scrn <<- initscr()
+    gb.scrn <<- rcurses.initscr()
 
     # disables line buffering and erase/kill character-processing
-    cbreak()
+    rcurses.cbreak()
 
     # screen will be cleared on next call to refresh
-    clear(gb.scrn)
+    rcurses.clear(gb.scrn)
 
     # allows support of color attributes on terminals
-    start_color()
+    rcurses.start_color()
 
     # initialize color pair for source code line that has a breakpoint
-    init_pair(1,COLOR_BLACK,COLOR_RED)
+    rcurses.init_pair(1,rcurses.COLOR_BLACK,rcurses.COLOR_RED)
 
     # initialize color pair for source code line that's the current line
-    init_pair(2,COLOR_BLACK,COLOR_GREEN)
+    rcurses.init_pair(2,rcurses.COLOR_BLACK,rcurses.COLOR_GREEN)
 
     # initialize color pair for source code line that's current and breakpoint
-    init_pair(3,COLOR_BLACK,COLOR_YELLOW)
+    rcurses.init_pair(3,rcurses.COLOR_BLACK,rcurses.COLOR_YELLOW)
 
     # initialize color pair for remaining source code
-    init_pair(8,COLOR_BLACK,COLOR_WHITE)
+    rcurses.init_pair(8,rcurses.COLOR_BLACK,rcurses.COLOR_WHITE)
 
     # set background color pair
-    bkgd(gb.scrn,' ',color_pair(8))
+    rcurses.bkgd(gb.scrn,' ',rcurses.color_pair(8))
 
     # other inits leave 3 lines for console, including border with src panel
-    gb.winlen <<- LINES - 3
+    gb.winlen <<- rcurses.LINES - 3
 
     # comment
-    gb.winwid <<- COLS
+    gb.winwid <<- rcurses.COLS
 
     # comment
     gb.msgline <<- gb.winlen + 2
 
     # comment
-    refresh(gb.scrn)
+    rcurses.refresh(gb.scrn)
 
     # manadatory return statement
     return(NULL)
+}
+
+cleancursesthings <- function() {
+    rcurses.nocbreak()
+    rcurses.endwin()
 }
 
 # initialize various globals dealing with the source file
@@ -342,7 +366,7 @@ dispsrc <- function(srcstartrow) {
     w(match.call()[[1]])
 
     # comment
-    clear(gb.scrn)
+    rcurses.clear(gb.scrn)
 
     # comment
     winrow <- 0
@@ -358,23 +382,23 @@ dispsrc <- function(srcstartrow) {
 
             # comment
             if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-                paintcolorline(winrow,gb.srclines[[i]],color_pair(3))
+                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(3))
             }
 
             # comment
             else {
-                paintcolorline(winrow,gb.srclines[[i]],color_pair(2))
+                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(2))
             }
         }
 
         # comment
         else if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-            paintcolorline(winrow,gb.srclines[[i]],color_pair(1))
+            paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(1))
         }
 
         # comment
         else {
-            addstr(gb.scrn,gb.srclines[[i]],winrow,0)
+            rcurses.addstr(gb.scrn,gb.srclines[[i]],winrow,0)
         }
 
         # comment
@@ -385,7 +409,7 @@ dispsrc <- function(srcstartrow) {
     gb.firstdisplayedlineno <<- srcstartrow
 
     # comment
-    refresh(gb.scrn)
+    rcurses.refresh(gb.scrn)
 
     # manadatory return statement
     return(NULL)
@@ -399,7 +423,7 @@ paintcolorline <- function(winrow,whattopaint,colorpair) {
     whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
 
     # comment
-    addstr(gb.scrn,whattopaint,winrow,0,colorpair)
+    rcurses.addstr(gb.scrn,whattopaint,winrow,0,colorpair)
 
     # manadatory return statement
     return(NULL)
@@ -434,4 +458,8 @@ rplc <- function(s,k,r) {
     return(paste0(front,r,back))
 }
 
-debugR('a.R')
+# debugging function, prints variable name with variable value
+p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
+
+# debugging function, prints called function name to debug file
+w <- function(x) { write(capture.output(x),append=TRUE) }
