@@ -1,5 +1,8 @@
 # this is the R version of debugR.py
 
+suppressMessages(library(rcurses))
+library(stringr)
+
 # all globals packaged here
 gb.scrn <- NULL  # will point to window object
 gb.row <- NULL  # current row position of cursor within window
@@ -22,6 +25,178 @@ gb.bpconds <- NULL  # dictionary of breakpoints
 gb.prevcmd <- NULL  # last user command
 gb.helpfile <- FALSE
 
+# debugging function, prints variable name with variable value
+p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
+
+# debugging function, prints called function name to debug file
+w <- function(x) { write(capture.output(x),append=TRUE) }
+
+# finds the number of decimal digits in n
+ndigs <- function(n) {
+    # w(match.call()[[1]])
+    return(nchar(toString(n)))
+}
+
+# paints a row in the screen, in the designated color
+paintcolorline <- function(winrow,whattopaint,colorpair) {
+    # w(match.call()[[1]])
+
+    whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
+
+    rcurses.addstr(gb.scrn,whattopaint,winrow,0,colorpair)
+
+    # manadatory return statement
+    return(NULL)
+}
+
+# this function displays the current source file, starting at the top of
+# the screen, and beginning with the row srcstartrow in gb.srclines
+dispsrc <- function(srcstartrow) {
+    # w(match.call()[[1]])
+
+    # comment
+    rcurses.clear(gb.scrn)
+
+    # comment
+    winrow <- 0
+
+    # comment
+    nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.winlen)
+
+    # comment
+    for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
+
+        # comment
+        if (substr(gb.srclines[[i]],gb.Nplace,gb.Nplace) == 'N') {
+
+            # comment
+            if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
+                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(3))
+            }
+
+            # comment
+            else {
+                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(2))
+            }
+        }
+
+        # comment
+        else if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
+            paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(1))
+        }
+
+        # comment
+        else {
+            rcurses.addstr(gb.scrn,gb.srclines[[i]],winrow,0)
+        }
+
+        # comment
+        winrow <- winrow + 1
+    }
+
+    # comment
+    gb.firstdisplayedlineno <<- srcstartrow
+
+    # comment
+    rcurses.refresh(gb.scrn)
+
+    # manadatory return statement
+    return(NULL)
+}
+
+# this function reads in the source file from disk, and copies it to the
+# list gb.srclines, with each source file being prepended by the line
+# number
+inputsrc <- function(filename) {
+    # w(match.call()[[1]])
+
+    # comment
+    lns <- readLines(filename)
+
+    # comment
+    gb.srclen <<- length(lns)
+
+    # comment
+    gb.maxdigits <<- ndigs(length(lns) + 1)
+
+    # location of 'N', if any
+    gb.Nplace <<- gb.maxdigits + 2
+
+    # location of 'D', if any
+    gb.Dplace <<- gb.maxdigits + 3
+
+    # comment
+    lnno <- 1
+
+    # comment
+    gb.srclines <<- list()
+
+    # comment
+    for (lineNum in 1:length(lns)) {
+
+        # form the line number, with blanks instead of leading 0s
+        ndl <- ndigs(lineNum)
+
+        # comment
+        tmp <- rep(' ',gb.maxdigits - ndl)
+
+        # comment
+        tmp <- paste0(tmp,toString(lineNum),' ')
+
+        # add room for N marker for next executed and D/B for breakpoint
+        tmp <- paste0(tmp,'   ')
+
+        # now add the source line itself, truncated to fit the window
+        # width, if necessary
+        tmp <- paste0(tmp,lns[lineNum])
+
+        # comment
+        ntrunclinechars <- min(gb.winwid,nchar(tmp))
+
+        # comment
+        gb.srclines <<- append(gb.srclines,substr(tmp,1,ntrunclinechars))
+    }
+
+    # comment
+    dispsrc(1)
+
+    # manadatory return statement
+    return(NULL)
+}
+
+# utility; in string s at position k, replace by string r, presumed to
+# be the same length as s; new string is returned
+rplc <- function(s,k,r) {
+    # w(match.call()[[1]])
+
+    # grab first k - 1 characters of string
+    front <- substr(s,1,k - 1)
+
+    # grab last characters after r added at position k
+    back <- substr(s,k + nchar(r),nchar(s))
+
+    # return concatenation
+    return(paste0(front,r,back))
+}
+
+# substitutes s starting at linepos in line lineno of gb.srclines; this
+# function does NOT paint the screen, and indeed the given line may be
+# currently off the screen; mainly used to add an 'N' or 'D' designation
+# in a source line
+rplcsrcline <- function(lineno,linepos,s) {
+    # w(match.call()[[1]])
+
+    # add s into source line lineno at position linepos
+    gb.srclines[[lineno]] <<- rplc(gb.srclines[[lineno]],linepos,s)
+
+    # manadatory return statement
+    return(NULL)
+}
+
+chop <- function(s) {
+
+}
+
 # sends the command cmd to the "screen session", thus typically to R
 sendtoscreen <- function(cmd) {
     cmd <- paste(cmd, '\n', sep="")
@@ -29,9 +204,215 @@ sendtoscreen <- function(cmd) {
     system(tosend)
 }
 
-debugR <- function(filename) {
-    suppressMessages(library(rcurses))
+# comment
+# sendtoscreen <- function(cmd) {
+#     w(match.call()[[1]])
 
+#     # illegal parameter(s)
+#     if (is.character(cmd) == FALSE) { p(cmd); quit() }
+
+#     system(cmd)
+
+#     # manadatory return statement
+#     return(NULL)
+# }
+
+# initialize various globals dealing with the source file
+initsrcthings <- function() {
+    # w(match.call()[[1]])
+
+    # comment
+    gb.nextlinenum <<- 1
+
+    # comment
+    inputsrc(gb.currsrcfilename)
+
+    # comment
+    rplcsrcline(1,gb.Nplace,'N')
+
+    # comment
+    dispsrc(gb.nextlinenum)
+
+    # manadatory return statement
+    return(NULL)
+}
+
+# initializes debugging operations; tells R to call sink(), setting up a
+# duplication of screen output to file output; then tells R to input our
+# buggy file
+# initrdebug <- function() {
+#     sendtoscreen("sink(\'dbgsink\',split=T)")
+#     for (i in 1:20) {
+
+#     }
+# }
+
+finddebugline <- function() {
+
+}
+
+inwin <- function(linenum) {
+
+}
+
+updatecolor <- function(wrow, linenum) {
+
+}
+
+updatenext <- function(newnextlinenum) {
+
+}
+
+blankline <- function(winrow) {
+
+}
+
+checkdbgsink <- function() {
+
+}
+
+dostep <- function(cmd) {
+    if (cmd == 's') {
+        # assumes an isolated function call, e.g. not a call within a
+        # call, so function name is the first non-whitespace char in the
+        # line, and ')' immediately follows the function name
+        currline <- gb.srclines[[gb.nextlinenum]]
+        currline <- str_sub(currline, (gb.Dplace+1))  # remove line number etc.
+        # ftnpart <- trimws(currline, which="left")  # remove leading whitespace
+        ftnpart <- str_trim(currline, "left")  # remove leading whitespace
+        parenplace <- str_locate(ftnpart, '(')[1]
+        ftnname <- str_sub(ftnpart, 1, parenplace-1)
+        cmd = str_c("debugonce(", ftnname, "); c")
+    }
+    sendtoscreen(cmd)
+    Sys.sleep(0.25)
+    checkdbgsink()
+    if (gb.papcmd) {
+        doprint(gb.papcmd)
+    }
+}
+
+dorun <- function(cmd) {
+
+}
+
+removefirsttokens <- function(k, s) {
+
+}
+
+doprint <- function(cmd) {
+
+}
+
+dopap <- function(cmd) {
+
+}
+
+findftnnamebylinenum <- function(linenum) {
+
+}
+
+findftnlinenumbyname <- function(fname) {
+
+}
+
+findenclosingftn <- function(linenum) {
+
+}
+
+dodf <- function(cmd) {
+
+}
+
+doudfa <- function() {
+
+}
+
+dobp <- function(cmd) {
+
+}
+
+doubp <- function(cmd) {
+
+}
+
+doreloadsrc <- function(cmd) {
+
+}
+
+dodown <- function() {
+
+}
+
+doup <- function() {
+
+}
+
+doquitbrowser <- function() {
+
+}
+
+dohelp <- function() {
+
+}
+
+# initialize rcurses environment
+initcursesthings <- function() {
+    # w(match.call()[[1]])
+
+    # initializes the screen for rcurses
+    gb.scrn <<- rcurses.initscr()
+
+    # disables line buffering and erase/kill character-processing
+    rcurses.cbreak()
+
+    # screen will be cleared on next call to refresh
+    rcurses.clear(gb.scrn)
+
+    # allows support of color attributes on terminals
+    rcurses.start_color()
+
+    # initialize color pair for source code line that has a breakpoint
+    rcurses.init_pair(1,rcurses.COLOR_BLACK,rcurses.COLOR_RED)
+
+    # initialize color pair for source code line that's the current line
+    rcurses.init_pair(2,rcurses.COLOR_BLACK,rcurses.COLOR_GREEN)
+
+    # initialize color pair for source code line that's current and breakpoint
+    rcurses.init_pair(3,rcurses.COLOR_BLACK,rcurses.COLOR_YELLOW)
+
+    # initialize color pair for remaining source code
+    rcurses.init_pair(8,rcurses.COLOR_BLACK,rcurses.COLOR_WHITE)
+
+    # set background color pair
+    rcurses.bkgd(gb.scrn,' ',rcurses.color_pair(8))
+
+    # other inits leave 3 lines for console, including border with src panel
+    gb.winlen <<- rcurses.LINES - 3
+
+    # comment
+    gb.winwid <<- rcurses.COLS
+
+    # comment
+    gb.msgline <<- gb.winlen + 2
+
+    # comment
+    rcurses.refresh(gb.scrn)
+
+    # manadatory return statement
+    return(NULL)
+}
+
+cleancursesthings <- function() {
+    rcurses.nocbreak()
+    rcurses.endwin()
+}
+
+errormsg <- function(err) {
+    
+}
+
+debugR <- function(filename) {
     tmp <- system('screen -ls | grep rdebug')
     if (tmp == 0) {
         cat('rdebug screen running\n')
@@ -52,9 +433,15 @@ debugR <- function(filename) {
     # initialize global variables related to source code
     initsrcthings()
 
+    # have R read in the source file to be debugged
+    loadsrc = paste("source(", "\'", gb.currsrcfilename, "\'", ")", sep="")
+    sendtoscreen(loadsrc)
+
+    # initrdebug()
+
     # one iteration of this loop handles one user command, e.g. one
     # "continue" or one "next"
-    while(TRUE) {
+    while (TRUE) {
 
         # set console
         tmp <- (gb.winwid - 1 - nchar(' h for help ')) / 2
@@ -208,258 +595,3 @@ debugR <- function(filename) {
     # manadatory return statement
     return(NULL)
 }
-
-# comment
-sendtoscreen <- function(cmd) {
-    w(match.call()[[1]])
-
-    # illegal parameter(s)
-    if (is.character(cmd) == FALSE) { p(cmd); quit() }
-
-    system(cmd)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-# initialize rcurses environment
-initcursesthings <- function() {
-    w(match.call()[[1]])
-
-    # initializes the screen for rcurses
-    gb.scrn <<- rcurses.initscr()
-
-    # disables line buffering and erase/kill character-processing
-    rcurses.cbreak()
-
-    # screen will be cleared on next call to refresh
-    rcurses.clear(gb.scrn)
-
-    # allows support of color attributes on terminals
-    rcurses.start_color()
-
-    # initialize color pair for source code line that has a breakpoint
-    rcurses.init_pair(1,rcurses.COLOR_BLACK,rcurses.COLOR_RED)
-
-    # initialize color pair for source code line that's the current line
-    rcurses.init_pair(2,rcurses.COLOR_BLACK,rcurses.COLOR_GREEN)
-
-    # initialize color pair for source code line that's current and breakpoint
-    rcurses.init_pair(3,rcurses.COLOR_BLACK,rcurses.COLOR_YELLOW)
-
-    # initialize color pair for remaining source code
-    rcurses.init_pair(8,rcurses.COLOR_BLACK,rcurses.COLOR_WHITE)
-
-    # set background color pair
-    rcurses.bkgd(gb.scrn,' ',rcurses.color_pair(8))
-
-    # other inits leave 3 lines for console, including border with src panel
-    gb.winlen <<- rcurses.LINES - 3
-
-    # comment
-    gb.winwid <<- rcurses.COLS
-
-    # comment
-    gb.msgline <<- gb.winlen + 2
-
-    # comment
-    rcurses.refresh(gb.scrn)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-cleancursesthings <- function() {
-    rcurses.nocbreak()
-    rcurses.endwin()
-}
-
-# initialize various globals dealing with the source file
-initsrcthings <- function() {
-    w(match.call()[[1]])
-
-    # comment
-    gb.nextlinenum <<- 1
-
-    # comment
-    inputsrc(gb.currsrcfilename)
-
-    # comment
-    rplcsrcline(1,gb.Nplace,'N')
-
-    # comment
-    dispsrc(gb.nextlinenum)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-# this function reads in the source file from disk, and copies it to the
-# list gb.srclines, with each source file being prepended by the line
-# number
-inputsrc <- function(filename) {
-    w(match.call()[[1]])
-
-    # comment
-    lns <- readLines(filename)
-
-    # comment
-    gb.srclen <<- length(lns)
-
-    # comment
-    gb.maxdigits <<- ndigs(length(lns) + 1)
-
-    # location of 'N', if any
-    gb.Nplace <<- gb.maxdigits + 2
-
-    # location of 'D', if any
-    gb.Dplace <<- gb.maxdigits + 3
-
-    # comment
-    lnno <- 1
-
-    # comment
-    gb.srclines <<- list()
-
-    # comment
-    for (lineNum in 1:length(lns)) {
-
-        # form the line number, with blanks instead of leading 0s
-        ndl <- ndigs(lineNum)
-
-        # comment
-        tmp <- rep(' ',gb.maxdigits - ndl)
-
-        # comment
-        tmp <- paste0(tmp,toString(lineNum),' ')
-
-        # add room for N marker for next executed and D/B for breakpoint
-        tmp <- paste0(tmp,'   ')
-
-        # now add the source line itself, truncated to fit the window
-        # width, if necessary
-        tmp <- paste0(tmp,lns[lineNum])
-
-        # comment
-        ntrunclinechars <- min(gb.winwid,nchar(tmp))
-
-        # comment
-        gb.srclines <<- append(gb.srclines,substr(tmp,1,ntrunclinechars))
-    }
-
-    # comment
-    dispsrc(1)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-# finds the number of decimal digits in n
-ndigs <- function(n) {
-    w(match.call()[[1]])
-    return(nchar(toString(n)))
-}
-
-# this function displays the current source file, starting at the top of
-# the screen, and beginning with the row srcstartrow in gb.srclines
-dispsrc <- function(srcstartrow) {
-    w(match.call()[[1]])
-
-    # comment
-    rcurses.clear(gb.scrn)
-
-    # comment
-    winrow <- 0
-
-    # comment
-    nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.winlen)
-
-    # comment
-    for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
-
-        # comment
-        if (substr(gb.srclines[[i]],gb.Nplace,gb.Nplace) == 'N') {
-
-            # comment
-            if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(3))
-            }
-
-            # comment
-            else {
-                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(2))
-            }
-        }
-
-        # comment
-        else if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-            paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(1))
-        }
-
-        # comment
-        else {
-            rcurses.addstr(gb.scrn,gb.srclines[[i]],winrow,0)
-        }
-
-        # comment
-        winrow <- winrow + 1
-    }
-
-    # comment
-    gb.firstdisplayedlineno <<- srcstartrow
-
-    # comment
-    rcurses.refresh(gb.scrn)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-# paints a row in the screen, in the designated color
-paintcolorline <- function(winrow,whattopaint,colorpair) {
-    w(match.call()[[1]])
-
-    # comment
-    whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
-
-    # comment
-    rcurses.addstr(gb.scrn,whattopaint,winrow,0,colorpair)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-# substitutes s starting at linepos in line lineno of gb.srclines; this
-# function does NOT paint the screen, and indeed the given line may be
-# currently off the screen; mainly used to add an 'N' or 'D' designation
-# in a source line
-rplcsrcline <- function(lineno,linepos,s) {
-    w(match.call()[[1]])
-
-    # add s into source line lineno at position linepos
-    gb.srclines[[lineno]] <<- rplc(gb.srclines[[lineno]],linepos,s)
-
-    # manadatory return statement
-    return(NULL)
-}
-
-# utility; in string s at position k, replace by string r, presumed to
-# be the same length as s; new string is returned
-rplc <- function(s,k,r) {
-    w(match.call()[[1]])
-
-    # grab first k - 1 characters of string
-    front <- substr(s,1,k - 1)
-
-    # grab last characters after r added at position k
-    back <- substr(s,k + nchar(r),nchar(s))
-
-    # return concatenation
-    return(paste0(front,r,back))
-}
-
-# debugging function, prints variable name with variable value
-p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
-
-# debugging function, prints called function name to debug file
-w <- function(x) { write(capture.output(x),append=TRUE) }
