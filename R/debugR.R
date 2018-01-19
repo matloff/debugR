@@ -18,11 +18,11 @@ gb.nextlinenum <- NULL  # source line number to be executed next; starts at 0
 gb.ftns <- NULL  # dictionary of function line numberss, indexed by function name
 gb.debuggeecall <- NULL  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
 gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
-gb.papcmd <- NULL  # expression to be printed at each pause (after n/s/c cmd)
+gb.papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
 gb.msgline <- NULL  # line in window where messages are printed
 gb.ds <- NULL  # file handle for dbgsink file
 gb.bpconds <- NULL  # dictionary of breakpoints
-gb.prevcmd <- NULL  # last user command
+gb.prevcmd <- ""  # last user command
 gb.helpfile <- FALSE
 
 # debugging function, prints variable name with variable value
@@ -263,8 +263,9 @@ updatenext <- function(newnextlinenum) {
 
 }
 
+# blank out the given line in the current window
 blankline <- function(winrow) {
-
+    rcurses.addstr(gb.scrn, strdup(' ', gb.winwid-1), winrow, 0)
 }
 
 checkdbgsink <- function() {
@@ -287,7 +288,7 @@ dostep <- function(cmd) {
     sendtoscreen(cmd)
     Sys.sleep(0.25)
     checkdbgsink()
-    if (gb.papcmd) {
+    if (gb.papcmd != "") {
         doprint(gb.papcmd)
     }
 }
@@ -308,20 +309,77 @@ dopap <- function(cmd) {
 
 }
 
+# given (1-based) line number in current source file, returns the name
+# of the function that begins on that line
 findftnnamebylinenum <- function(linenum) {
-
+    srcline <- gb.srclines[[linenum]]
+    srcline <- str_split(srcline, " ", simplify=TRUE)
+    fnamepos <- match("<-", srcline) - 1  # func name is 1 token before <-
+    return(srcline[fnamepos])
 }
 
+# given name of a function in the current source file, returns the 
+# (1-based) number of the line at which it begins
 findftnlinenumbyname <- function(fname) {
-
+    for (i in 1:length(gb.srclines)) {
+        srcline = gb.srclines[[i]]
+        srcline = str_split(srcline, " ", simplify=TRUE)
+        fnamepos <- match("<-", srcline) - 1 # func name is 1 token before <-
+        if (!is.na(fnamepos)) {  # if there was a function declared on this line
+            if (srcline[fnamepos] == fname) {
+                return(i)
+            }
+        } else {
+            return(NA)
+        }
+    }
 }
 
 findenclosingftn <- function(linenum) {
 
 }
 
+# call R debug() or undebug() on the given function; specified either by
+# line number or function name; for now, assumes blanks surround '<-' in
+# the assignment line in which the function is defined
 dodf <- function(cmd) {
+    cmdparts <- str_split(cmd, " ", simplify=TRUE)
+    fspec <- cmdparts[2]
 
+    # Determine both function line number and name.
+    if (!is.na(as.integer(fspec))) {  # if function specified by line number
+        fline = as.integer(fspec)
+        fname = findftnnamebylinenum(fline)
+    } else {  # if function specified by name
+        fname = fspec
+        fline = findftnlinenumbyname(fname)
+    }
+
+    # Update the function's debug flag.
+    if (cmdparts[1] == "df") {
+        tosend = str_c("debug(", fname, ")")
+    } else {
+        tosend = str_c("undebug(", fname, ")")
+    }
+    sendtoscreen(tosend)
+
+    # mark the src line D for "debug", blank out the D if undebug
+    if (cmdparts[1] == "df") {
+        rplcsrcline(fline,gb.Dplace,'D')
+    } else {
+        rplcsrcline(fline,gb.Dplace,' ')
+    }
+
+    # if it's currently on the screen, update there
+    firstdisp = gb.firstdisplayedlineno
+    if (inwin(fline)) {
+        winrow = fline - firstdisp
+        if (cmdparts[1] == "df") {
+            updatecolor(winrow,fline)
+        } else {  # undebug case
+            udpatecolor(winrow,fline)
+        }
+    }
 }
 
 doudfa <- function() {
@@ -409,7 +467,7 @@ cleancursesthings <- function() {
 }
 
 errormsg <- function(err) {
-    
+
 }
 
 debugR <- function(filename) {
@@ -461,7 +519,7 @@ debugR <- function(filename) {
         cmd <- rcurses.getstr(gb.scrn)
 
         # if user simply hits Enter, then re-do previous command
-        if (cmd == '' && is.character(gb.prevcmd)) {
+        if (cmd == '' && gb.prevcmd != "") {
             cmd <- gb.prevcmd
         }
 
