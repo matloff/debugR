@@ -258,8 +258,23 @@ inwin <- function(linenum) {
     return (linenum >= firstdisp && linenum < firstdisp + gb.winlen)
 }
 
+# change the highlighting color of a line that's in the current window,
+# to reflect that it's the current line or a pause line
 updatecolor <- function(wrow, linenum) {
-
+    tmp = gb.srclines[[linenum]]
+    if (str_sub(tmp, gb.Nplace, gb.Nplace) == 'N') {
+        if (str_sub(tmp, gb.Dplace, gb.Dplace) == 'D') {
+            colorpair = rcurses.color_pair(3)
+        } else {
+            colorpair = rcurses.color_pair(2)
+        }
+    } else if (str_sub(tmp, gb.Dplace, gb.Dplace) == 'D') {
+        colorpair = rcurses.color_pair(1)
+    } else {
+        colorpair = rcurses.color_pair(0)
+    }
+    paintcolorline(wrow,tmp,colorpair)
+    rcurses.refresh(gb.scrn)
 }
 
 updatenext <- function(newnextlinenum) {
