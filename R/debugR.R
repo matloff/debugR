@@ -193,8 +193,9 @@ rplcsrcline <- function(lineno,linepos,s) {
     return(NULL)
 }
 
+# deletes newline character at the end of s, returning result
 chop <- function(s) {
-
+    return(str_sub(s, 1, -2))  # cut off last character
 }
 
 # sends the command cmd to the "screen session", thus typically to R
@@ -240,19 +241,21 @@ initsrcthings <- function() {
 # initializes debugging operations; tells R to call sink(), setting up a
 # duplication of screen output to file output; then tells R to input our
 # buggy file
-# initrdebug <- function() {
-#     sendtoscreen("sink(\'dbgsink\',split=T)")
-#     for (i in 1:20) {
+initrdebug <- function() {
+    sendtoscreen("sink(\'dbgsink\',split=T)")
+    for (i in 1:20) {
 
-#     }
-# }
+    }
+}
 
 finddebugline <- function() {
 
 }
 
+# determines if linenum of the current src is in the current window
 inwin <- function(linenum) {
-
+    firstdisp = gb.firstdisplayedlineno
+    return (linenum >= firstdisp && linenum < firstdisp + gb.winlen)
 }
 
 updatecolor <- function(wrow, linenum) {
@@ -339,6 +342,10 @@ findenclosingftn <- function(linenum) {
 
 }
 
+stringstartswithnumber <- function(str) {
+    return(grepl("^[0-9].*", str))
+}
+
 # call R debug() or undebug() on the given function; specified either by
 # line number or function name; for now, assumes blanks surround '<-' in
 # the assignment line in which the function is defined
@@ -347,7 +354,7 @@ dodf <- function(cmd) {
     fspec <- cmdparts[2]
 
     # Determine both function line number and name.
-    if (!is.na(as.integer(fspec))) {  # if function specified by line number
+    if (stringstartswithnumber(fspec)) {  # if function specified by line number
         fline = as.integer(fspec)
         fname = findftnnamebylinenum(fline)
     } else {  # if function specified by name
@@ -377,7 +384,7 @@ dodf <- function(cmd) {
         if (cmdparts[1] == "df") {
             updatecolor(winrow,fline)
         } else {  # undebug case
-            udpatecolor(winrow,fline)
+            updatecolor(winrow,fline)
         }
     }
 }
@@ -505,13 +512,13 @@ debugR <- function(filename) {
         tmp <- (gb.winwid - 1 - nchar(' h for help ')) / 2
 
         # text for the help bar
-        helpbar <- paste0(rep(' ',tmp),' h for help ',rep(' ',tmp))
+        helpbar <- str_c(str_dup(' ',tmp),' h for help ',str_dup(' ',tmp))
 
         # put the help bar on the screen
         rcurses.addstr(gb.scrn,helpbar,gb.winlen,0,rcurses.A_REVERSE)
 
         # comment
-        rcurses.addstr(gb.scrn,rep(' ',gb.winwid - 1),gb.winlen + 1,0)
+        rcurses.addstr(gb.scrn,str_dup(' ',gb.winwid - 1),gb.winlen + 1,0)
 
         # comment
         rcurses.move(gb.scrn,gb.winlen + 1,0)
