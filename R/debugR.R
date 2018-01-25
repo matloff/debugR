@@ -242,9 +242,12 @@ initsrcthings <- function() {
 # duplication of screen output to file output; then tells R to input our
 # buggy file
 initrdebug <- function() {
+    # planned change:  have sink() write to R network connection, to
+    # a server that is run here; the throttling then probably won't be
+    # necessary, and conditional breakpoint will be faster
     sendtoscreen("sink(\'dbgsink\',split=T)")
     for (i in 1:20) {
-
+        gb.ds <<- file("dbgsink", "w")
     }
 }
 
@@ -286,6 +289,8 @@ blankline <- function(winrow) {
     rcurses.addstr(gb.scrn, strdup(' ', gb.winwid-1), winrow, 0)
 }
 
+# when we hit a pause, or exit the R debugger, this function will
+# determine what line we paused at, or that we did exit
 checkdbgsink <- function() {
 
 }
@@ -311,8 +316,15 @@ dostep <- function(cmd) {
     }
 }
 
+# run the debuggee call
 dorun <- function(cmd) {
-
+    # if function to call was specified, run it; otherwise, run the last one
+    if (cmd != "rn") {
+        gb.debuggeecall <<- str_split(cmd, " ", simplify=TRUE)[2]
+    }
+    sendtoscreen(gb.debuggeecall)
+    Sys.sleep(0.5)
+    checkdbgsink()
 }
 
 removefirsttokens <- function(k, s) {
@@ -328,23 +340,27 @@ dopap <- function(cmd) {
 }
 
 # given (1-based) line number in current source file, returns the name
-# of the function that begins on that line
+# of the function that begins on that line. if no function there,
+# returns NA.
 findftnnamebylinenum <- function(linenum) {
     srcline <- gb.srclines[[linenum]]
     srcline <- str_split(srcline, " ", simplify=TRUE)
     fnamepos <- match("<-", srcline) - 1  # func name is 1 token before <-
-    return(srcline[fnamepos])
+    if (is.na(fnamepos)) {
+        return(NA)
+    } else {
+        return(srcline[fnamepos])
+    }
 }
 
 # given name of a function in the current source file, returns the 
-# (1-based) number of the line at which it begins
+# (1-based) number of the line at which it begins. if fail to find
+# function, returns NA.
 findftnlinenumbyname <- function(fname) {
     for (i in 1:length(gb.srclines)) {
-        srcline = gb.srclines[[i]]
-        srcline = str_split(srcline, " ", simplify=TRUE)
-        fnamepos <- match("<-", srcline) - 1 # func name is 1 token before <-
-        if (!is.na(fnamepos)) {  # if there was a function declared on this line
-            if (srcline[fnamepos] == fname) {
+        possiblefname = findftnnamebylinenum(i)
+        if (!is.na(possiblefname)) {  # if there was a function declared on this line
+            if (possiblefname == fname) {
                 return(i)
             }
         } else {
@@ -517,7 +533,7 @@ debugR <- function(filename) {
     loadsrc = paste("source(", "\'", gb.currsrcfilename, "\'", ")", sep="")
     sendtoscreen(loadsrc)
 
-    # initrdebug()
+    initrdebug()
 
     # one iteration of this loop handles one user command, e.g. one
     # "continue" or one "next"
@@ -655,6 +671,7 @@ debugR <- function(filename) {
             sendtoscreen('screen -wipe')
             sendtoscreen('exit')
             cleancursesthings()
+            close(gb.ds)
             break
         }
 
