@@ -459,7 +459,17 @@ doup <- function() {
 }
 
 doquitbrowser <- function() {
-
+    sendtoscreen('Q')
+    oldnextlinenum = gb.nextlinenum
+    if (!is.na(oldnextlinenum)) {
+        rplcsrcline(oldnextlinenum,gb.Nplace,' ')
+        if (inwin(oldnextlinenum)) {
+            winrow = oldnextlinenum - gb.firstdisplayedlineno
+            updatecolor(winrow,oldnextlinenum)
+        }
+    }
+    gb.papcmd <<- ''
+    blankline(gb.winlen + 2)
 }
 
 dohelp <- function() {
