@@ -67,27 +67,27 @@ dispsrc <- function(srcstartrow) {
     for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
 
         # comment
-        if (substr(gb.srclines[[i]],gb.Nplace,gb.Nplace) == 'N') {
+        if (substr(gb.srclines[i],gb.Nplace,gb.Nplace) == 'N') {
 
             # comment
-            if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(3))
+            if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
+                paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(3))
             }
 
             # comment
             else {
-                paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(2))
+                paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(2))
             }
         }
 
         # comment
-        else if (substr(gb.srclines[[i]],gb.Dplace,gb.Dplace) == 'D') {
-            paintcolorline(winrow,gb.srclines[[i]],rcurses.color_pair(1))
+        else if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
+            paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(1))
         }
 
         # comment
         else {
-            rcurses.addstr(gb.scrn,gb.srclines[[i]],winrow,0)
+            rcurses.addstr(gb.scrn,gb.srclines[i],winrow,0)
         }
 
         # comment
@@ -129,7 +129,7 @@ inputsrc <- function(filename) {
     lnno <- 1
 
     # comment
-    gb.srclines <<- list()
+    gb.srclines <<- c()
 
     # comment
     for (lineNum in 1:length(lns)) {
@@ -153,8 +153,7 @@ inputsrc <- function(filename) {
         # comment
         ntrunclinechars <- min(gb.winwid,nchar(tmp))
 
-        # comment
-        gb.srclines <<- append(gb.srclines,substr(tmp,1,ntrunclinechars))
+        gb.srclines <<- c(gb.srclines, substr(tmp,1,ntrunclinechars))
     }
 
     # comment
@@ -187,7 +186,7 @@ rplcsrcline <- function(lineno,linepos,s) {
     # w(match.call()[[1]])
 
     # add s into source line lineno at position linepos
-    gb.srclines[[lineno]] <<- rplc(gb.srclines[[lineno]],linepos,s)
+    gb.srclines[lineno] <<- rplc(gb.srclines[lineno],linepos,s)
 
     # manadatory return statement
     return(NULL)
@@ -247,12 +246,24 @@ initrdebug <- function() {
     # necessary, and conditional breakpoint will be faster
     sendtoscreen("sink(\'dbgsink\',split=T)")
     for (i in 1:20) {
-        gb.ds <<- file("dbgsink", "w")
+        gb.ds <<- file("dbgsink", "r")
     }
 }
 
+# find the latest line in the sink file that starts with either 'debug
+# at' (pause line) or 'exiting from' (exit R debugger), returning that
+# line 
 finddebugline <- function() {
-
+    sinkfilelines <- readLines(gb.ds, n=-1)  # read all lines
+    numlines <- length(sinkfilelines)
+    for (i in numlines:1) {
+        if (!is.na(str_locate(sinkfilelines[i], "exiting from")[1])) {
+            return(c('exiting', sinkfilelines[i]))
+        } else if (!is.na(str_locate(sinkfilelines[i], "debug at")[1])) {
+            return(c('debug', sinkfilelines[i]))
+        }
+    }
+    return(NA)
 }
 
 # determines if linenum of the current src is in the current window
@@ -264,7 +275,7 @@ inwin <- function(linenum) {
 # change the highlighting color of a line that's in the current window,
 # to reflect that it's the current line or a pause line
 updatecolor <- function(wrow, linenum) {
-    tmp = gb.srclines[[linenum]]
+    tmp = gb.srclines[linenum]
     if (str_sub(tmp, gb.Nplace, gb.Nplace) == 'N') {
         if (str_sub(tmp, gb.Dplace, gb.Dplace) == 'D') {
             colorpair = rcurses.color_pair(3)
@@ -300,7 +311,7 @@ dostep <- function(cmd) {
         # assumes an isolated function call, e.g. not a call within a
         # call, so function name is the first non-whitespace char in the
         # line, and ')' immediately follows the function name
-        currline <- gb.srclines[[gb.nextlinenum]]
+        currline <- gb.srclines[gb.nextlinenum]
         currline <- str_sub(currline, (gb.Dplace+1))  # remove line number etc.
         # ftnpart <- trimws(currline, which="left")  # remove leading whitespace
         ftnpart <- str_trim(currline, "left")  # remove leading whitespace
@@ -343,7 +354,7 @@ dopap <- function(cmd) {
 # of the function that begins on that line. if no function there,
 # returns NA.
 findftnnamebylinenum <- function(linenum) {
-    srcline <- gb.srclines[[linenum]]
+    srcline <- gb.srclines[linenum]
     srcline <- str_split(srcline, " ", simplify=TRUE)
     fnamepos <- match("<-", srcline) - 1  # func name is 1 token before <-
     if (is.na(fnamepos)) {
@@ -433,7 +444,10 @@ doubp <- function(cmd) {
 }
 
 doreloadsrc <- function(cmd) {
-
+    doudfa()
+    loadsrc = str_c("source(\'", gb.currsrcfilename, "\')")
+    sendtoscreen(loadsrc)
+    inputsrc(gb.currsrcfilename)
 }
 
 dodown <- function() {
