@@ -14,7 +14,7 @@ gb.srclines <- NULL  # contents of source file, list of strings, 1 per src line
 gb.maxdigits <- NULL  # number of digits in the longest line number
 gb.firstdisplayedlineno <- NULL  # source line number now displayed at top of window; starts at 0
 gb.currsrcfilename <- NULL  # name of source file currently in window
-gb.nextlinenum <- NULL  # source line number to be executed next; starts at 0
+gb.nextlinenum <- NA  # source line number to be executed next; starts at 1
 gb.ftns <- NULL  # dictionary of function line numberss, indexed by function name
 gb.debuggeecall <- NULL  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
 gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
@@ -38,6 +38,7 @@ ndigs <- function(n) {
 }
 
 # paints a row in the screen, in the designated color
+# winrow is 0-based
 paintcolorline <- function(winrow,whattopaint,colorpair) {
     # w(match.call()[[1]])
 
@@ -254,7 +255,10 @@ initrdebug <- function() {
 # at' (pause line) or 'exiting from' (exit R debugger), returning that
 # line 
 finddebugline <- function() {
-    sinkfilelines <- readLines(gb.ds, n=-1)  # read all lines
+    # go back to start of file to read all lines
+    seek(gb.ds, where=0, origin="start")
+    sinkfilelines <- readLines(gb.ds, n=-1)
+
     numlines <- length(sinkfilelines)
     for (i in numlines:1) {
         if (!is.na(str_locate(sinkfilelines[i], "exiting from")[1])) {
@@ -274,6 +278,7 @@ inwin <- function(linenum) {
 
 # change the highlighting color of a line that's in the current window,
 # to reflect that it's the current line or a pause line
+# wrow is 1-based.
 updatecolor <- function(wrow, linenum) {
     tmp = gb.srclines[linenum]
     if (str_sub(tmp, gb.Nplace, gb.Nplace) == 'N') {
@@ -287,23 +292,64 @@ updatecolor <- function(wrow, linenum) {
     } else {
         colorpair = rcurses.color_pair(0)
     }
-    paintcolorline(wrow,tmp,colorpair)
+    paintcolorline(wrow-1,tmp,colorpair)
     rcurses.refresh(gb.scrn)
 }
 
+# update the indicators, e.g. N mark, of where the next line to be
+# executed is; newnextlinenum is 1-based
 updatenext <- function(newnextlinenum) {
-
+    oldnextlinenum = gb.nextlinenum
+    rplcsrcline(oldnextlinenum,gb.Nplace,' ')
+    if (inwin(oldnextlinenum)) {
+        winrow = oldnextlinenum - gb.firstdisplayedlineno + 1
+        updatecolor(winrow,oldnextlinenum)
+    }
+    gb.nextlinenum <<- newnextlinenum
+    rplcsrcline(newnextlinenum,gb.Nplace,'N')
+    if (inwin(newnextlinenum)) {
+        winrow = newnextlinenum - gb.firstdisplayedlineno + 1
+        updatecolor(winrow,newnextlinenum)
+    } else {
+        dispsrc(newnextlinenum)
+    }
 }
 
 # blank out the given line in the current window
 blankline <- function(winrow) {
-    rcurses.addstr(gb.scrn, strdup(' ', gb.winwid-1), winrow, 0)
+    rcurses.addstr(gb.scrn, str_dup(' ', gb.winwid-1), winrow, 0)
 }
 
 # when we hit a pause, or exit the R debugger, this function will
 # determine what line we paused at, or that we did exit
 checkdbgsink <- function() {
-
+    # now must find current src file, line num; works on the basis of the
+    # lines in the sink file being of the form, e.g.
+    #    debug at test.R#3: for (i in 1:3) {
+    found = finddebugline()
+    if (!is.na(found)) { # need the if, as dbgsink may still be empty at this point
+        sinkline = found[2]
+        # sendtoscreen(str_c("print(", sinkline, ")"))
+        colonplace = str_locate(sinkline, ":")[1]
+        if (found[1] == 'debug') {
+            linenumstart = str_locate(sinkline, "#")[1] + 1
+            # get file name before # sign
+            srcfile = str_sub(sinkline, 10, linenumstart-2)
+            linenum = as.integer(str_sub(sinkline, linenumstart, colonplace-1))
+            # is this a conditional breakpoint?
+            fline = linenum
+            # if ()
+            updatenext(fline)
+        } else if (found[1] == 'exiting') {
+            linenum = gb.nextlinenum
+            winrow = linenum - gb.firstdisplayedlineno + 1
+            rplcsrcline(linenum,gb.Nplace,' ')
+            paintcolorline(winrow-1,gb.srclines[linenum],rcurses.color_pair())
+            gb.papcmd <<- ''
+            blankline(gb.winlen + 2)
+            rcurses.refresh(gb.scrn)
+        }
+    }
 }
 
 dostep <- function(cmd) {
@@ -422,7 +468,7 @@ dodf <- function(cmd) {
     # if it's currently on the screen, update there
     firstdisp = gb.firstdisplayedlineno
     if (inwin(fline)) {
-        winrow = fline - firstdisp
+        winrow = fline - firstdisp + 1
         if (cmdparts[1] == "df") {
             updatecolor(winrow,fline)
         } else {  # undebug case
