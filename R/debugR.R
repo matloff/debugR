@@ -48,7 +48,8 @@ paintcolorline <- function(winrow,whattopaint,colorpair) {
 }
 
 # this function displays the current source file, starting at the top of
-# the screen, and beginning with the row srcstartrow in gb.srclines
+# the screen, and beginning with the row srcstartrow in gb.srclines.
+# srcstartrow is 1-based.
 dispsrc <- function(srcstartrow) {
     rcurses.clear(gb.scrn)
     winrow <- 0
@@ -213,9 +214,7 @@ initrdebug <- function() {
     # necessary, and conditional breakpoint will be faster
     file.create('dbgsink')
     sendtoscreen("sink(\'dbgsink\',split=T)")
-    for (i in 1:20) {
-        gb.ds <<- file("dbgsink", "r")
-    }
+    gb.ds <<- file("dbgsink", "r")
 }
 
 # find the latest line in the sink file that starts with either 'debug
@@ -465,11 +464,13 @@ doreloadsrc <- function(cmd) {
 }
 
 dodown <- function() {
-
+    newstartline = min(gb.firstdisplayedlineno+gb.scroll,gb.srclen)
+    dispsrc(newstartline)
 }
 
 doup <- function() {
-
+    newstartline = max(gb.firstdisplayedlineno-gb.scroll,1)
+    dispsrc(newstartline)
 }
 
 doquitbrowser <- function() {
@@ -557,7 +558,7 @@ debugR <- function(filename) {
     # start "screen, with name 'rdebug' for now
     system('xterm -e "screen -S \'rdebug\'" &')
     # start R within screen
-    Sys.sleep(3)
+    Sys.sleep(1)
     sendtoscreen('R --no-save -q')
     initcursesthings()
 
