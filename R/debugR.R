@@ -40,10 +40,7 @@ ndigs <- function(n) {
 # paints a row in the screen, in the designated color
 # winrow is 0-based
 paintcolorline <- function(winrow,whattopaint,colorpair) {
-    # w(match.call()[[1]])
-
     whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
-
     rcurses.addstr(gb.scrn,whattopaint,winrow,0,colorpair)
 
     # manadatory return statement
@@ -53,52 +50,26 @@ paintcolorline <- function(winrow,whattopaint,colorpair) {
 # this function displays the current source file, starting at the top of
 # the screen, and beginning with the row srcstartrow in gb.srclines
 dispsrc <- function(srcstartrow) {
-    # w(match.call()[[1]])
-
-    # comment
     rcurses.clear(gb.scrn)
-
-    # comment
     winrow <- 0
-
-    # comment
     nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.winlen)
 
-    # comment
+    # paint each line of the window
     for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
-
-        # comment
         if (substr(gb.srclines[i],gb.Nplace,gb.Nplace) == 'N') {
-
-            # comment
             if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
                 paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(3))
-            }
-
-            # comment
-            else {
+            } else {
                 paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(2))
             }
-        }
-
-        # comment
-        else if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
+        } else if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
             paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(1))
-        }
-
-        # comment
-        else {
+        } else {
             rcurses.addstr(gb.scrn,gb.srclines[i],winrow,0)
         }
-
-        # comment
         winrow <- winrow + 1
     }
-
-    # comment
     gb.firstdisplayedlineno <<- srcstartrow
-
-    # comment
     rcurses.refresh(gb.scrn)
 
     # manadatory return statement
@@ -109,15 +80,12 @@ dispsrc <- function(srcstartrow) {
 # list gb.srclines, with each source file being prepended by the line
 # number
 inputsrc <- function(filename) {
-    # w(match.call()[[1]])
-
-    # comment
     lns <- readLines(filename)
 
-    # comment
+    
     gb.srclen <<- length(lns)
 
-    # comment
+    
     gb.maxdigits <<- ndigs(length(lns) + 1)
 
     # location of 'N', if any
@@ -126,22 +94,22 @@ inputsrc <- function(filename) {
     # location of 'D', if any
     gb.Dplace <<- gb.maxdigits + 3
 
-    # comment
+    
     lnno <- 1
 
-    # comment
+    
     gb.srclines <<- c()
 
-    # comment
+    
     for (lineNum in 1:length(lns)) {
 
         # form the line number, with blanks instead of leading 0s
         ndl <- ndigs(lineNum)
 
-        # comment
+        
         tmp <- rep(' ',gb.maxdigits - ndl)
 
-        # comment
+        
         tmp <- paste0(tmp,toString(lineNum),' ')
 
         # add room for N marker for next executed and D/B for breakpoint
@@ -151,13 +119,13 @@ inputsrc <- function(filename) {
         # width, if necessary
         tmp <- paste0(tmp,lns[lineNum])
 
-        # comment
+        
         ntrunclinechars <- min(gb.winwid,nchar(tmp))
 
         gb.srclines <<- c(gb.srclines, substr(tmp,1,ntrunclinechars))
     }
 
-    # comment
+    
     dispsrc(1)
 
     # manadatory return statement
@@ -184,8 +152,6 @@ rplc <- function(s,k,r) {
 # currently off the screen; mainly used to add an 'N' or 'D' designation
 # in a source line
 rplcsrcline <- function(lineno,linepos,s) {
-    # w(match.call()[[1]])
-
     # add s into source line lineno at position linepos
     gb.srclines[lineno] <<- rplc(gb.srclines[lineno],linepos,s)
 
@@ -205,7 +171,7 @@ sendtoscreen <- function(cmd) {
     system(tosend)
 }
 
-# comment
+
 # sendtoscreen <- function(cmd) {
 #     w(match.call()[[1]])
 
@@ -222,16 +188,16 @@ sendtoscreen <- function(cmd) {
 initsrcthings <- function() {
     # w(match.call()[[1]])
 
-    # comment
+    
     gb.nextlinenum <<- 1
 
-    # comment
+    
     inputsrc(gb.currsrcfilename)
 
-    # comment
+    
     rplcsrcline(1,gb.Nplace,'N')
 
-    # comment
+    
     dispsrc(gb.nextlinenum)
 
     # manadatory return statement
@@ -245,6 +211,7 @@ initrdebug <- function() {
     # planned change:  have sink() write to R network connection, to
     # a server that is run here; the throttling then probably won't be
     # necessary, and conditional breakpoint will be faster
+    file.create('dbgsink')
     sendtoscreen("sink(\'dbgsink\',split=T)")
     for (i in 1:20) {
         gb.ds <<- file("dbgsink", "r")
@@ -327,9 +294,10 @@ checkdbgsink <- function() {
     # lines in the sink file being of the form, e.g.
     #    debug at test.R#3: for (i in 1:3) {
     found = finddebugline()
-    if (!is.na(found)) { # need the if, as dbgsink may still be empty at this point
+    # need the if, as dbgsink may still be empty at this point.
+    # use any() to avoid a warning.
+    if (!any(is.na(found))) {
         sinkline = found[2]
-        # sendtoscreen(str_c("print(", sinkline, ")"))
         colonplace = str_locate(sinkline, ":")[1]
         if (found[1] == 'debug') {
             linenumstart = str_locate(sinkline, "#")[1] + 1
@@ -344,7 +312,7 @@ checkdbgsink <- function() {
             linenum = gb.nextlinenum
             winrow = linenum - gb.firstdisplayedlineno + 1
             rplcsrcline(linenum,gb.Nplace,' ')
-            paintcolorline(winrow-1,gb.srclines[linenum],rcurses.color_pair())
+            paintcolorline(winrow-1,gb.srclines[linenum],rcurses.color_pair(0))
             gb.papcmd <<- ''
             blankline(gb.winlen + 2)
             rcurses.refresh(gb.scrn)
@@ -556,13 +524,13 @@ initcursesthings <- function() {
     # other inits leave 3 lines for console, including border with src panel
     gb.winlen <<- rcurses.LINES - 3
 
-    # comment
+    
     gb.winwid <<- rcurses.COLS
 
-    # comment
+    
     gb.msgline <<- gb.winlen + 2
 
-    # comment
+    
     rcurses.refresh(gb.scrn)
 
     # manadatory return statement
@@ -618,10 +586,10 @@ debugR <- function(filename) {
         # put the help bar on the screen
         rcurses.addstr(gb.scrn,helpbar,gb.winlen,0,rcurses.A_REVERSE)
 
-        # comment
+        
         rcurses.addstr(gb.scrn,str_dup(' ',gb.winwid - 1),gb.winlen + 1,0)
 
-        # comment
+        
         rcurses.move(gb.scrn,gb.winlen + 1,0)
 
         cmd <- rcurses.getstr(gb.scrn)
@@ -706,7 +674,7 @@ debugR <- function(filename) {
             dodown()
         }
 
-        # comment
+        
         else if (substr(cmd,1,2) == 'up') {
             doup()
         }
@@ -714,18 +682,15 @@ debugR <- function(filename) {
         # (re)load source file
         else if (substr(cmd,1,2) == 'ls') {
 
-            # comment
+            
             cmdsplit <- strsplit(cmd,' ')
 
-            # comment
+            
             if (nchar(cmdsplit) > 1) {
                 gb.currsrcfilename <<- strsplit(cmd,' ')[[1]][2]
             }
 
-            # comment
             initsrcthings()
-
-            # comment
             source(gb.currsrcfilename)
         }
 
