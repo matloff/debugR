@@ -351,12 +351,31 @@ dorun <- function(cmd) {
     checkdbgsink()
 }
 
+# utility: removes the first k nonwhitespace tokens, e.g.
+# e.g. with k = 2, inputting 'a + b + c' returns 'b + c'
 removefirsttokens <- function(k, s) {
-
+    # Start the substring after the kth whitespace character.
+    startspliceindex = str_locate_all(s, " ")[[1]][k,1] + 1
+    return(str_sub(s, startspliceindex))
 }
 
 doprint <- function(cmd) {
+    pcmd = str_split(cmd, " ", simplify=TRUE)[1]
+    expressiontoprint = removefirsttokens(1,cmd)
+    if (pcmd == 'pc') {
+        sendtoscreen(expressiontoprint)
+        return()
+    }
 
+    # Print the line in screen, then retrieve the line that was printed
+    # from the sink.
+    tosend = str_c("cat(", expressiontoprint, ",fill=TRUE)")
+    sendtoscreen(tosend)
+    Sys.sleep(0.25)  # give time for screen output to be written to dbgsink
+    ds = file("dbgsink", "r")
+    printedline = tail(readLines(ds, n=-1), 1)
+    toprint = str_c(expressiontoprint, " = ", printedline)
+    paintcolorline(gb.msgline,toprint,rcurses.color_pair(0))
 }
 
 dopap <- function(cmd) {
