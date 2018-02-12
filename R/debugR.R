@@ -21,7 +21,7 @@ gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
 gb.papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
 gb.msgline <- NULL  # line in window where messages are printed
 gb.ds <- NULL  # file handle for dbgsink file
-gb.bpconds <- NULL  # dictionary of breakpoints
+gb.bpconds <- c()  # dictionary of breakpoints
 gb.prevcmd <- ""  # last user command
 gb.helpfile <- FALSE
 
@@ -151,7 +151,8 @@ rplc <- function(s,k,r) {
 # substitutes s starting at linepos in line lineno of gb.srclines; this
 # function does NOT paint the screen, and indeed the given line may be
 # currently off the screen; mainly used to add an 'N' or 'D' designation
-# in a source line
+# in a source line.
+# lineno is 1-based.
 rplcsrcline <- function(lineno,linepos,s) {
     # add s into source line lineno at position linepos
     gb.srclines[lineno] <<- rplc(gb.srclines[lineno],linepos,s)
@@ -322,7 +323,6 @@ dostep <- function(cmd) {
         # line, and ')' immediately follows the function name
         currline <- gb.srclines[gb.nextlinenum]
         currline <- str_sub(currline, (gb.Dplace+1))  # remove line number etc.
-        # ftnpart <- trimws(currline, which="left")  # remove leading whitespace
         ftnpart <- str_trim(currline, "left")  # remove leading whitespace
         parenplace <- str_locate(ftnpart, '(')[1]
         ftnname <- str_sub(ftnpart, 1, parenplace-1)
@@ -408,8 +408,25 @@ findftnlinenumbyname <- function(fname) {
     return(NA)  # function not found
 }
 
+# given (1-based) line number in current source file, returns the name
+# of the function that includes this line; assumes no "functions defined
+# within functions"
 findenclosingftn <- function(linenum) {
-
+    # Start at given line number and keep going up a line until
+    # find name of the enclosing function.
+    i = linenum
+    sendtoscreen(str_c("i=",i))
+    while (i > 0) {
+        line = gb.srclines[i]
+        # if function on this line
+        if (!is.na(str_locate(line,"<- function")[1])) {
+            fname = findftnnamebylinenum(i)
+            if (!is.na(fname))
+                return(fname)
+        }
+        i = i - 1  # go up a line
+    }
+    return(NA)
 }
 
 # Returns TRUE if given str starts with number; otherwise, FALSE.
@@ -469,12 +486,47 @@ doudfa <- function() {
     }
 }
 
+# setBreakpoint() will be called on the requested source line, specified by
+# (1-based) line number in the current source file
 dobp <- function(cmd) {
-
+    cmdparts = str_split(cmd, ' ', simplify=TRUE)
+    linenum = cmdparts[2]
+    filename = gb.currsrcfilename
+    tosend = str_c("setBreakpoint(\'", filename, "\',", linenum, ")")
+    sendtoscreen(tosend)
+    # mark the src line D for "debug"
+    fline = as.integer(linenum)
+    rplcsrcline(fline,gb.Dplace,"D")
+    # if it's currently on the screen, update there
+    if (inwin(fline)) {
+        firstdisp = gb.firstdisplayedlineno
+        winrow = fline - firstdisp + 1
+        updatecolor(winrow,fline)
+    }
+    # add to our list of conditional breakpoints
+    if (length(cmdparts) > 2)  # if conditional breakpoint (condition is 3rd arg)
+        gb.bpconds[fline] <<- removefirsttokens(2,cmd)
 }
 
 doubp <- function(cmd) {
-
+    cmdparts = str_split(cmd, ' ', simplify=TRUE)
+    linenum = cmdparts[2]
+    ftnname = findenclosingftn(as.integer(linenum))
+    tosend = str_c("untrace(", ftnname, ")")
+    # unfortunately, untrace() does an auto undebug(), so need to update
+    dodf(str_c("udf ", ftnname))
+    sendtoscreen(tosend)
+    fline = as.integer(linenum)
+    rplcsrcline(fline,gb.Dplace,' ')
+    # if it's currently on the screen, update there
+    if (inwin(fline)) {
+        firstdisp = gb.firstdisplayedlineno
+        winrow = fline - firstdisp + 1
+        updatecolor(winrow,fline)
+    }
+    # if there is a conditional breakpoint for this fline
+    if (!is.null(gb.bpconds[fline]))
+        gb.bpconds[fline] <<- NA
 }
 
 doreloadsrc <- function(cmd) {
