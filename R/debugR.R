@@ -169,21 +169,17 @@ chop <- function(s) {
 sendtoscreen <- function(cmd) {
     cmd <- paste(cmd, '\n', sep="")
     tosend <- paste('screen -S "rdebug" -X stuff "', cmd, '" ', sep="")
+    # R S3 classes use $ for member quantities; must escape it for
+    # Unix-family systems; need to expand, checking for non-Unix, for
+    # multiple $, etc.; note that R also requires escaping the
+    # backslash!
+    dollarIndex = str_locate(tosend, "\\$")[1]
+    if (!is.na(dollarIndex)) {
+        tosend = str_c(str_sub(tosend, 0, dollarIndex-1), "\\",
+            str_sub(tosend,dollarIndex))
+    }
     system(tosend)
 }
-
-
-# sendtoscreen <- function(cmd) {
-#     w(match.call()[[1]])
-
-#     # illegal parameter(s)
-#     if (is.character(cmd) == FALSE) { p(cmd); quit() }
-
-#     system(cmd)
-
-#     # manadatory return statement
-#     return(NULL)
-# }
 
 # initialize various globals dealing with the source file
 initsrcthings <- function() {
@@ -376,6 +372,7 @@ doprint <- function(cmd) {
     printedline = tail(readLines(ds, n=-1), 1)
     toprint = str_c(expressiontoprint, " = ", printedline)
     paintcolorline(gb.msgline,toprint,rcurses.color_pair(0))
+    close(ds)
 }
 
 dopap <- function(cmd) {
@@ -406,16 +403,16 @@ findftnlinenumbyname <- function(fname) {
             if (possiblefname == fname) {
                 return(i)
             }
-        } else {
-            return(NA)
         }
     }
+    return(NA)  # function not found
 }
 
 findenclosingftn <- function(linenum) {
 
 }
 
+# Returns TRUE if given str starts with number; otherwise, FALSE.
 stringstartswithnumber <- function(str) {
     return(grepl("^[0-9].*", str))
 }
@@ -463,8 +460,13 @@ dodf <- function(cmd) {
     }
 }
 
+# call undebug() on all functions currently in debug state
 doudfa <- function() {
-
+    for (i in 1:length(gb.srclines)) {
+        if (str_sub(gb.srclines[i], gb.Dplace, gb.Dplace) == "D") {
+            dodf(str_c("udf ", i))
+        }
+    }
 }
 
 dobp <- function(cmd) {
@@ -563,7 +565,9 @@ cleancursesthings <- function() {
 }
 
 errormsg <- function(err) {
-
+    blankline(gb.msgline)
+    rcurses.addstr(gb.scrn,err,gb.msgline,0)
+    rcurses.refresh(gb.scrn)
 }
 
 debugR <- function(filename) {
@@ -701,17 +705,13 @@ debugR <- function(filename) {
 
         # (re)load source file
         else if (substr(cmd,1,2) == 'ls') {
-
-            
-            cmdsplit <- strsplit(cmd,' ')
-
-            
-            if (nchar(cmdsplit) > 1) {
-                gb.currsrcfilename <<- strsplit(cmd,' ')[[1]][2]
+            cmdsplit = str_split(cmd, ' ', simplify=TRUE)
+            if (length(cmdsplit) > 1) {  # if file name given
+                gb.currsrcfilename <<- cmdsplit[2]
             }
-
             initsrcthings()
-            source(gb.currsrcfilename)
+            loadsrc = str_c("source(\'",gb.currsrcfilename,"\')")
+            sendtoscreen(loadsrc)
         }
 
         # quit R browser
@@ -743,7 +743,4 @@ debugR <- function(filename) {
         # save previous command
         gb.prevcmd <<- cmd
     }
-
-    # manadatory return statement
-    return(NULL)
 }
