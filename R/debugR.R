@@ -21,8 +21,6 @@ gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
 gb.papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
 gb.msgline <- NULL  # line in window where messages are printed
 gb.ds <- NULL  # file handle for dbgsink file
-gb.nextlineindex <- 1  # next unread line in the dbgsink file, so we will never
-                       # read the same line through gb.ds
 gb.bpconds <- c()  # dictionary of breakpoints
 gb.prevcmd <- ""  # last user command
 gb.helpfile <- FALSE
@@ -221,15 +219,14 @@ initrdebug <- function() {
 # Used for getting updates on what the user is currently debugging
 # (if anything) (e.g. which function is being debugged).
 readfromgbds <- function() {
-    # go back to start of file to read all lines
-    seek(gb.ds, where=0, origin="start")
-    lines = readLines(gb.ds, n=-1)
+    # Position the connection to where it's already positioned.
+    # Oddly, I seem to have to do this seek() command, or else gb.ds
+    # won't recognize any lines that have been appended to the file since
+    # the last time readLines() was called on gb.ds.
+    seek(gb.ds, where=seek(gb.ds), origin="start")
 
-    # only return the lines that have not yet been read through this global
-    # connection.
-    oldnextlineindex = gb.nextlineindex
-    gb.nextlineindex <<- length(lines)+1 # so a seen line will never be re-seen
-    return(lines[oldnextlineindex:length(lines)])
+    lines = readLines(gb.ds, n=-1)
+    return(lines)
 }
 
 # find the latest line in the sink file that starts with either 'debug
