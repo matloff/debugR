@@ -21,6 +21,8 @@ gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
 gb.papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
 gb.msgline <- NULL  # line in window where messages are printed
 gb.ds <- NULL  # file handle for dbgsink file
+gb.nextlineindex <- 1  # next unread line in the dbgsink file, so we will never
+                       # read the same line through gb.ds
 gb.bpconds <- c()  # dictionary of breakpoints
 gb.prevcmd <- ""  # last user command
 gb.helpfile <- FALSE
@@ -214,19 +216,43 @@ initrdebug <- function() {
     gb.ds <<- file("dbgsink", "r")
 }
 
+# Returns all the latest lines in the sink file that have not yet been
+# read through the global connection.
+# Used for getting updates on what the user is currently debugging
+# (if anything) (e.g. which function is being debugged).
+readfromgbds <- function() {
+    # go back to start of file to read all lines
+    seek(gb.ds, where=0, origin="start")
+    lines = readLines(gb.ds, n=-1)
+
+    # only return the lines that have not yet been read through this global
+    # connection.
+    oldnextlineindex = gb.nextlineindex
+    gb.nextlineindex <<- length(lines)+1 # so a seen line will never be re-seen
+    return(lines[oldnextlineindex:length(lines)])
+}
+
 # find the latest line in the sink file that starts with either 'debug
 # at' (pause line) or 'exiting from' (exit R debugger), returning that
 # line 
 finddebugline <- function() {
     # go back to start of file to read all lines
-    seek(gb.ds, where=0, origin="start")
-    sinkfilelines <- readLines(gb.ds, n=-1)
+    # seek(gb.ds, where=0, origin="start")
+    # sinkfilelines <- readLines(gb.ds, n=-1)
+    sinkfilelines <- readfromgbds()
 
     numlines <- length(sinkfilelines)
     for (i in numlines:1) {
+        # Check for line of the form, e.g.:
+        # exiting from: g()
         if (!is.na(str_locate(sinkfilelines[i], "exiting from")[1])) {
             return(c('exiting', sinkfilelines[i]))
-        } else if (!is.na(str_locate(sinkfilelines[i], "debug at")[1])) {
+        }
+        # Check for line of either form, e.g.:
+        # debug at test.R#9: {
+        # test.R#4
+        else if (!is.na(str_locate(sinkfilelines[i],
+            str_c(gb.currsrcfilename,"#"))[1])) {
             return(c('debug', sinkfilelines[i]))
         }
     }
@@ -298,12 +324,32 @@ checkdbgsink <- function() {
         if (found[1] == 'debug') {
             linenumstart = str_locate(sinkline, "#")[1] + 1
             # get file name before # sign
-            srcfile = str_sub(sinkline, 10, linenumstart-2)
-            linenum = as.integer(str_sub(sinkline, linenumstart, colonplace-1))
-            # is this a conditional breakpoint?
-            fline = linenum
-            # if ()
-            updatenext(fline)
+            # srcfile = str_sub(sinkline, 10, linenumstart-2)
+            if (is.na(colonplace))  # if no colon found on this line
+                linenum = as.integer(str_sub(sinkline, linenumstart))
+            else
+                linenum = as.integer(str_sub(sinkline, linenumstart, colonplace-1))
+            if (iscondbphere(linenum)) {  # if conditional breakpoint
+                # Print the condition of the conditional breakpoint so we
+                # can its value (true/false).
+                doprint(str_c('p ',gb.bpconds[linenum]))
+
+                # go back to start of file to read all lines, so we can read
+                # last line (doesn't seem to be a cleaner way).
+                # seek(gb.ds, where=0, origin="start")
+                # sinkfilelines <- readLines(gb.ds, n=-1)
+                sinkfilelines <- readfromgbds()
+                lastline = sinkfilelines[length(sinkfilelines)]
+
+                # if bp condition doesn't hold, do not stop at it
+                if (!is.na(str_locate(lastline, "FALSE")[1])) {
+                    if (gb.prevcmd != "n") {
+                        dostep("c")
+                        return()
+                    }
+                }
+            }
+            updatenext(linenum)
         } else if (found[1] == 'exiting') {
             linenum = gb.nextlinenum
             winrow = linenum - gb.firstdisplayedlineno + 1
@@ -415,7 +461,6 @@ findenclosingftn <- function(linenum) {
     # Start at given line number and keep going up a line until
     # find name of the enclosing function.
     i = linenum
-    sendtoscreen(str_c("i=",i))
     while (i > 0) {
         line = gb.srclines[i]
         # if function on this line
@@ -486,6 +531,14 @@ doudfa <- function() {
     }
 }
 
+# Returns TRUE if there is conditional breakpoint at given 1-based line number.
+iscondbphere <- function(lineno) {
+    if (length(gb.bpconds) > 0)  # if even are any breakpoints
+        return(!is.na(gb.bpconds[lineno]))
+    else
+        return(FALSE)
+}
+
 # setBreakpoint() will be called on the requested source line, specified by
 # (1-based) line number in the current source file
 dobp <- function(cmd) {
@@ -525,7 +578,7 @@ doubp <- function(cmd) {
         updatecolor(winrow,fline)
     }
     # if there is a conditional breakpoint for this fline
-    if (!is.null(gb.bpconds[fline]))
+    if (iscondbphere(fline))
         gb.bpconds[fline] <<- NA
 }
 
@@ -623,6 +676,7 @@ errormsg <- function(err) {
 }
 
 debugR <- function(filename) {
+    # check for existing 'screen' sessions with name 'rdebug'
     tmp <- system('screen -ls | grep rdebug')
     if (tmp == 0) {
         cat('rdebug screen running\n')
