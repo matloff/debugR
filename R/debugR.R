@@ -418,8 +418,16 @@ doprint <- function(cmd) {
     close(ds)
 }
 
+# print R expression after each n or d cmd
 dopap <- function(cmd) {
-
+    pcmd = str_split(cmd," ",simplify=TRUE)[1]
+    expressiontoprint = removefirsttokens(1,cmd)
+    if (pcmd == 'pcap') {
+        gb.papcmd = str_c('pc ', expressiontoprint)
+    } else {
+        gb.papcmd = str_c('p ', expressiontoprint)
+    }
+    doprint(gb.papcmd)
 }
 
 # given (1-based) line number in current source file, returns the name
@@ -611,7 +619,31 @@ doquitbrowser <- function() {
 }
 
 dohelp <- function() {
-
+    if (!gb.helpfile) {
+        # open this R source file, find the help section, make a tmp
+        # file from it, and have R invoke the user's favorite text editor
+        # on it.
+        hf = file("R/debugR.R", "r")  # hardcode file name, for now
+        hflines = readLines(hf)
+        close(hf)
+        for (i in 1:length(hflines)) {
+            if (hflines[i] == '# HELP SECTION')
+                break
+        }
+        # delete the non-help section
+        hflines = hflines[i:length(hflines)]
+        # delete the comment signs (i.e. delete first two characters of each file,
+        # a comment sign and a space)
+        for (i in 1:length(hflines)) {
+            hflines[i] = str_sub(hflines[i], 3)
+        }
+        hfout = file("/tmp/debugRhelp","w")
+        cat(hflines,sep="\n",file=hfout)
+        close(hfout)
+        gb.helpfile <<- TRUE
+    }
+    tosend = "edit(file=\'/tmp/debugRhelp\')"
+    sendtoscreen(tosend)
 }
 
 # initialize rcurses environment
@@ -847,3 +879,94 @@ debugR <- function(filename) {
         gb.prevcmd <<- cmd
     }
 }
+
+# HELP SECTION
+#  
+# New users scroll down to Quick Start section below.  
+#  
+# Command List:
+#  
+# Enter key:  repeat last command (should use this a lot, e.g. for n)
+#   
+# rn expr:  Run the given expression; if no expression, use the previous Run
+#   
+# n,s,c:  go to Next line/Step to function/Continue until next pause
+#   
+# df f, udf f:  Debug/Undebug f()
+# udfa:  Undebug all functions
+#   
+# bp linenum:  set Breakpoint at given line
+# bp linenum expr:  set Breakpoint at given line, conditional on expr
+# ubp linenum:  cancel Breakpoint at the given line
+#   
+# p expr:  Print expression
+# pap expr:  Print expression at each Pause (only one expression at a time)
+# upap:  cancel pap
+#   
+# pc expr:  Print expression to Console
+# pcap expr:  Print expression to Console at each Pause 
+# upcap:  cancel pcap
+# 
+# down: scroll down
+# up: scroll down
+#   
+# Q:  quit R's debugger
+# es:  exit debugR program
+#   
+# ls srcfile:  (re)load source file; if no file given, use the previous one
+#   
+#   
+# Tips:
+#
+#    (a) Make good use of the Enter command, especially for repeating
+#        the Next or Continue command.
+#   
+#    (b) To print more than one item, use c() or str(), e.g.
+#
+#        p c(i,j)
+#  
+#    (c) To print a complicated object, say a matrix, use pc, e.g.
+#
+#        pc somematrix
+#   
+#    (d) To print something repeatedly as you step through the code,
+#        use pap or pcap.
+#    
+#    (e) Don't define functions within functions.  The R internal
+#        debug operations don't handle this well.
+#  
+# Quick Start:
+#  
+# Create a file test.R with contents
+#   
+#    f <- function() {
+#       sum <- 0
+#       for (i in 1:3) {
+#          sum <- sum + i
+#       }
+#       sum
+#    }
+#   
+# At the shell command line, type
+#   
+#    python debugR.py test.R
+#   
+# Then debugR will appear in your shell window, and it will invoke
+# an R session in a new window.  In the debugR window, type
+#   
+#    df f
+#    rn f()
+#   
+# That says to set the function f() to R debug state, and run f().  Then hit
+# n to go from line to line, hitting c to continue, Q to exit the R
+# debugger (but not debugR).  Hit es to end this debugR session.
+#  
+# See the Command List section above for a full list of commands.  Be
+# sure to read the Tips section too.
+#  
+
+# KNOWN ISSUES
+
+# the s command doesn't work if n has not been used fierst?
+
+# need to implement $ escape for non-Unix family systems
