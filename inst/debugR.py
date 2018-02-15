@@ -256,7 +256,7 @@ def dostep(cmd):
    if cmd == 's':
       # assumes an isolated function call, e.g. not a call within a
       # call, so function name is the first non-whitespace char in the
-      # line, and ')' immediately follows the function name
+      # line, and '(' immediately follows the function name
       currline = gb.srclines[gb.nextlinenum]
       currline = currline[(gb.Dplace+1):]  # remove line number etc.
       ftnpart = currline.lstrip()  # remove leading whitespace
