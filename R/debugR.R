@@ -38,10 +38,10 @@ ndigs <- function(n) {
 }
 
 # paints a row in the screen, in the designated color
-# winrow is 0-based
+# winrow is 1-based
 paintcolorline <- function(winrow,whattopaint,colorpair) {
     whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
-    rcurses.addstr(gb.scrn,whattopaint,winrow,0,colorpair)
+    rcurses.addstr(gb.scrn,whattopaint,winrow-1,0,colorpair)
 
     # manadatory return statement
     return(NULL)
@@ -52,7 +52,7 @@ paintcolorline <- function(winrow,whattopaint,colorpair) {
 # srcstartrow is 1-based.
 dispsrc <- function(srcstartrow) {
     rcurses.clear(gb.scrn)
-    winrow <- 0
+    winrow <- 1
     nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.winlen)
 
     # paint each line of the window
@@ -66,7 +66,8 @@ dispsrc <- function(srcstartrow) {
         } else if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
             paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(1))
         } else {
-            rcurses.addstr(gb.scrn,gb.srclines[i],winrow,0)
+            # subtract 1 from winrow because rcurses.addstr() is 0-based.
+            rcurses.addstr(gb.scrn,gb.srclines[i],winrow-1,0)
         }
         winrow <- winrow + 1
     }
@@ -278,7 +279,7 @@ updatecolor <- function(wrow, linenum) {
     } else {
         colorpair = rcurses.color_pair(0)
     }
-    paintcolorline(wrow-1,tmp,colorpair)
+    paintcolorline(wrow,tmp,colorpair)
     rcurses.refresh(gb.scrn)
 }
 
@@ -351,7 +352,7 @@ checkdbgsink <- function() {
             linenum = gb.nextlinenum
             winrow = linenum - gb.firstdisplayedlineno + 1
             rplcsrcline(linenum,gb.Nplace,' ')
-            paintcolorline(winrow-1,gb.srclines[linenum],rcurses.color_pair(0))
+            paintcolorline(winrow,gb.srclines[linenum],rcurses.color_pair(0))
             gb.papcmd <<- ''
             blankline(gb.winlen + 2)
             rcurses.refresh(gb.scrn)
@@ -610,7 +611,7 @@ doquitbrowser <- function() {
     if (!is.na(oldnextlinenum)) {
         rplcsrcline(oldnextlinenum,gb.Nplace,' ')
         if (inwin(oldnextlinenum)) {
-            winrow = oldnextlinenum - gb.firstdisplayedlineno
+            winrow = oldnextlinenum - gb.firstdisplayedlineno + 1
             updatecolor(winrow,oldnextlinenum)
         }
     }
@@ -684,7 +685,7 @@ initcursesthings <- function() {
     gb.winwid <<- rcurses.COLS
 
     
-    gb.msgline <<- gb.winlen + 2
+    gb.msgline <<- rcurses.LINES  # last line
 
     
     rcurses.refresh(gb.scrn)
