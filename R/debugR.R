@@ -605,6 +605,11 @@ doup <- function() {
     dispsrc(newstartline)
 }
 
+dopls <- function() {
+    tosend = "ls.str()"
+    sendtoscreen(tosend)
+}
+
 doquitbrowser <- function() {
     sendtoscreen('Q')
     oldnextlinenum = gb.nextlinenum
@@ -802,6 +807,10 @@ debugR <- function(filename) {
         # check for Undo Print at Pause command
         else if (substr(cmd,1,4) == 'upap') {
             gb.papcmd <<- ''
+        }
+
+        else if (substr(cmd,1,3) == 'pls') {
+            dopls()
         }
 
         # check for Print command
