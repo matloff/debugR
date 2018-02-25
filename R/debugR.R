@@ -710,6 +710,18 @@ errormsg <- function(err) {
     rcurses.refresh(gb.scrn)
 }
 
+getusercmd <- function() {
+    rcurses.move(gb.scrn,gb.winlen + 1,0)
+    cmd <- rcurses.getstr(gb.scrn)
+
+    # if user simply hits Enter, then re-do previous command
+    if (cmd == '' && gb.prevcmd != "") {
+        return(gb.prevcmd)
+    } else {
+        return(cmd)
+    }
+}
+
 debugR <- function(filename) {
     # check for existing 'screen' sessions with name 'rdebug'
     tmp <- system('screen -ls | grep rdebug')
@@ -754,102 +766,96 @@ debugR <- function(filename) {
         
         rcurses.addstr(gb.scrn,str_dup(' ',gb.winwid - 1),gb.winlen + 1,0)
 
-        
-        rcurses.move(gb.scrn,gb.winlen + 1,0)
-
-        cmd <- rcurses.getstr(gb.scrn)
-
-        # if user simply hits Enter, then re-do previous command
-        if (cmd == '' && gb.prevcmd != "") {
-            cmd <- gb.prevcmd
-        }
+        fullcmd <- getusercmd()
+        # specifies the command without params
+        cmd = str_split(fullcmd," ",simplify=TRUE)[1]
 
         # check for Next or Continue
-        if (substr(cmd,1,1) == 'n' || substr(cmd,1,1) == 's' || substr(cmd,1,1) == 'c') {
-            dostep(cmd)
+        if (cmd == 'n' || cmd == 's' || cmd == 'c') {
+            dostep(fullcmd)
         }
 
         # check for Debug Ftn command
-        else if (substr(cmd,1,2) == 'df') {
-            dodf(cmd)
+        else if (cmd == 'df') {
+            dodf(fullcmd)
         }
 
         # check for UndebugAll Ftn command
-        else if (substr(cmd,1,4) == 'udfa') {
+        else if (cmd == 'udfa') {
             doudfa()
         }
 
         # check for Undebug Ftn command
-        else if (substr(cmd,1,3) == 'udf') {
-            dodf(cmd)
+        else if (cmd == 'udf') {
+            dodf(fullcmd)
         }
 
         # check for Set Breakpoint command
-        else if (substr(cmd,1,2) == 'bp') {
-            dobp(cmd)
+        else if (cmd == 'bp') {
+            dobp(fullcmd)
         }
 
         # check for Unset Breakpoint command
-        else if (substr(cmd,1,3) == 'ubp') {
-            doubp(cmd)
+        else if (cmd == 'ubp') {
+            doubp(fullcmd)
         }
 
         # check for Run command
-        else if (substr(cmd,1,2) == 'rn') {
-            dorun(cmd)
+        else if (cmd == 'rn') {
+            dorun(fullcmd)
         }
 
         # check for Print at Pause command
-        else if (substr(cmd,1,3) == 'pap') {
-            dopap(cmd)
+        else if (cmd == 'pap') {
+            dopap(fullcmd)
         }
 
         # check for Undo Print at Pause command
-        else if (substr(cmd,1,4) == 'upap') {
+        else if (cmd == 'upap') {
             gb.papcmd <<- ''
         }
 
-        else if (substr(cmd,1,3) == 'pls') {
+        else if (cmd == 'pls') {
             dopls()
         }
 
         # check for Print command
-        else if (substr(cmd,1,1) == 'p') {
-            doprint(cmd)
+        else if (cmd == 'p') {
+            doprint(fullcmd)
         }
 
         # check for Print to Console command
-        else if (substr(cmd,1,2) == 'pc') {
-            doprint(cmd)
+        else if (cmd == 'pc') {
+            doprint(fullcmd)
         }
 
         # check for Print to Console at Pause command
-        else if (substr(cmd,1,4) == 'pcap') {
-            dopap(cmd)
+        else if (cmd == 'pcap') {
+            dopap(fullcmd)
         }
 
         # check for Undo Print to Console at Pause command
-        else if (substr(cmd,1,5) == 'upcap') {
+        else if (cmd == 'upcap') {
             gb.papcmd <<- ''
         }
 
         # check for Source Reload command
-        else if (substr(cmd,1,2) == 'rl') {  # tell R to reload current source file
+        else if (cmd == 'rl') {  # tell R to reload current source file
             doreloadsrc()
         }
 
         # check for scrolling
-        else if (substr(cmd,1,4) == 'down') {
+        else if (cmd == 'down') {
             dodown()
         }
 
         
-        else if (substr(cmd,1,2) == 'up') {
+        else if (cmd == 'up') {
             doup()
         }
 
         # (re)load source file
-        else if (substr(cmd,1,2) == 'ls') {
+        else if (cmd == 'ls') {
             cmdsplit = str_split(cmd, ' ', simplify=TRUE)
             if (length(cmdsplit) > 1) {  # if file name given
                 gb.currsrcfilename <<- cmdsplit[2]
@@ -860,12 +866,12 @@ debugR <- function(filename) {
         }
 
         # quit R browser
-        else if (substr(cmd,1,1) == 'Q') {
+        else if (cmd == 'Q') {
             doquitbrowser()
         }
 
         # check for End Session command (stops R, screen and exits Python)
-        else if (substr(cmd,1,2) == 'es') {
+        else if (cmd == 'es') {
             sendtoscreen('quit()')
             sendtoscreen('killall screen')
             sendtoscreen('screen -wipe')
@@ -876,7 +882,7 @@ debugR <- function(filename) {
         }
 
         # display help information
-        else if (substr(cmd,1,1) == 'h') {
+        else if (cmd == 'h') {
             dohelp()
         }
 
@@ -886,7 +892,7 @@ debugR <- function(filename) {
         }
 
         # save previous command
-        gb.prevcmd <<- cmd
+        gb.prevcmd <<- fullcmd
     }
 }
 
