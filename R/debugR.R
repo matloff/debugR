@@ -610,6 +610,12 @@ dopls <- function() {
     sendtoscreen(tosend)
 }
 
+dopenv <- function(cmd) {
+    e = str_split(cmd," ",simplify=TRUE)[2]  # the environment to print contents of
+    tosend = str_c("ls.str(", e, ")")
+    sendtoscreen(tosend)
+}
+
 doquitbrowser <- function() {
     sendtoscreen('Q')
     oldnextlinenum = gb.nextlinenum
@@ -819,6 +825,10 @@ debugR <- function(filename) {
             dopls()
         }
 
+        else if (cmd == 'penv') {
+            dopenv(fullcmd)
+        }
+
         # check for Print command
         else if (cmd == 'p') {
             doprint(fullcmd)
@@ -922,6 +932,9 @@ debugR <- function(filename) {
 # pc expr:  Print expression to Console
 # pcap expr:  Print expression to Console at each Pause 
 # upcap:  cancel pcap
+#
+# pls: print local variables (including args) of the current function
+# penv e: print contents of the environment e
 # 
 # down: scroll down
 # up: scroll down
