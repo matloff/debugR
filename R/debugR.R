@@ -8,8 +8,8 @@ gb.scrn <- NULL  # will point to window object
 gb.row <- NULL  # current row position of cursor within window
 gb.src <- NULL  # handle for the current source file
 gb.srclen <- NULL  # length in lines of the current source file
-gb.winlen <- NULL  # length in lines of the window
-gb.winwid <- NULL  # width in characters of the window
+gb.srcpanellen <- NULL  # length in lines of the panel for displaying the source code
+gb.winwidth <- NULL  # width in characters of the window
 gb.srclines <- NULL  # contents of source file, list of strings, 1 per src line
 gb.maxdigits <- NULL  # number of digits in the longest line number
 gb.firstdisplayedlineno <- NULL  # source line number now displayed at top of window; starts at 0
@@ -19,7 +19,9 @@ gb.ftns <- NULL  # dictionary of function line numberss, indexed by function nam
 gb.debuggeecall <- NULL  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
 gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
 gb.papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
-gb.msgline <- NULL  # line in window where messages are printed
+gb.helpbarindex <- -1  # 1-based row index saying where to put the helpbar
+gb.userinputindex <- -1  # 1-based row index saying where to put user input
+gb.msgline <- NULL  # 1-based row index saying where to put messages on window
 gb.ds <- NULL  # file handle for dbgsink file
 gb.bpconds <- c()  # dictionary of breakpoints
 gb.prevcmd <- ""  # last user command
@@ -42,7 +44,7 @@ ndigs <- function(n) {
 writeline <- function(winrow,whattopaint,colorpair=NULL) {
     # Pad whattopaint with the right number of trailing spaces
     # to get a full row.
-    whattopaint <- str_c(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
+    whattopaint <- str_c(whattopaint,strrep(' ',gb.winwidth - nchar(whattopaint)))
 
     # Paint the line to the console with rcurses.
     rcurses.addstr(gb.scrn,whattopaint,winrow-1,0,colorpair)
@@ -57,7 +59,7 @@ writeline <- function(winrow,whattopaint,colorpair=NULL) {
 dispsrc <- function(srcstartrow) {
     rcurses.clear(gb.scrn)
     winrow <- 1
-    nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.winlen)
+    nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.srcpanellen)
 
     # paint each line of the window
     for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
@@ -125,7 +127,7 @@ inputsrc <- function(filename) {
         tmp <- paste0(tmp,lns[lineNum])
 
         
-        ntrunclinechars <- min(gb.winwid,nchar(tmp))
+        ntrunclinechars <- min(gb.winwidth,nchar(tmp))
 
         gb.srclines <<- c(gb.srclines, substr(tmp,1,ntrunclinechars))
     }
@@ -263,7 +265,7 @@ finddebugline <- function() {
 # determines if linenum of the current src is in the current window
 inwin <- function(linenum) {
     firstdisp = gb.firstdisplayedlineno
-    return (linenum >= firstdisp && linenum < firstdisp + gb.winlen)
+    return (linenum >= firstdisp && linenum < firstdisp + gb.srcpanellen)
 }
 
 # change the highlighting color of a line that's in the current window,
@@ -308,7 +310,7 @@ updatenext <- function(newnextlinenum) {
 # blank out the given line in the current window
 # winrow is 1-based
 blankline <- function(winrow) {
-    writeline(winrow,str_dup(' ', gb.winwid-1))
+    writeline(winrow,str_dup(' ', gb.winwidth-1))
 }
 
 # when we hit a pause, or exit the R debugger, this function will
@@ -358,7 +360,7 @@ checkdbgsink <- function() {
             rplcsrcline(linenum,gb.Nplace,' ')
             writeline(winrow,gb.srclines[linenum],rcurses.color_pair(0))
             gb.papcmd <<- ''
-            blankline(gb.winlen + 3)
+            blankline(gb.srcpanellen + 3)
             rcurses.refresh(gb.scrn)
         }
     }
@@ -631,7 +633,7 @@ doquitbrowser <- function() {
         }
     }
     gb.papcmd <<- ''
-    blankline(gb.winlen + 3)
+    blankline(gb.srcpanellen + 3)
 }
 
 dohelp <- function() {
@@ -693,15 +695,15 @@ initcursesthings <- function() {
     # set background color pair
     rcurses.bkgd(gb.scrn,' ',rcurses.color_pair(8))
 
-    # other inits leave 3 lines for console, including border with src panel
-    gb.winlen <<- rcurses.LINES - 3
-
-    
-    gb.winwid <<- rcurses.COLS
-
-    
+    # leave 3 lines at the bottom.
+    gb.srcpanellen <<- rcurses.LINES - 3
+    gb.helpbarindex <<- rcurses.LINES - 2
+    gb.userinputindex <<- rcurses.LINES - 1
     gb.msgline <<- rcurses.LINES  # last line
 
+    gb.winwidth <<- rcurses.COLS
+
+    
     
     rcurses.refresh(gb.scrn)
 
@@ -721,7 +723,7 @@ errormsg <- function(err) {
 }
 
 getusercmd <- function() {
-    rcurses.move(gb.scrn,gb.winlen + 1,0)
+    rcurses.move(gb.scrn,gb.userinputindex-1,0)  # rcurses is 0-based, so -1
     cmd <- rcurses.getstr(gb.scrn)
 
     # if user simply hits Enter, then re-do previous command
@@ -765,14 +767,14 @@ debugR <- function(filename) {
     while (TRUE) {
 
         # set console
-        tmp <- (gb.winwid - 1 - nchar(' h for help ')) / 2
+        tmp <- (gb.winwidth - 1 - nchar(' h for help ')) / 2
 
         # put the help bar on the screen
         helpbartext <- str_c(str_dup(' ',tmp),' h for help ',str_dup(' ',tmp))
-        writeline(gb.winlen+1,helpbartext,rcurses.A_REVERSE)
+        writeline(gb.helpbarindex,helpbartext,rcurses.A_REVERSE)
 
         # clear user's previous input
-        writeline(gb.winlen+2,str_dup(' ',gb.winwid - 1))
+        writeline(gb.userinputindex,str_dup(' ',gb.winwidth - 1))
 
         fullcmd <- getusercmd()
         # specifies the command without params
