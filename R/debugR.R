@@ -303,6 +303,7 @@ updatenext <- function(newnextlinenum) {
 }
 
 # blank out the given line in the current window
+# winrow is 0-based
 blankline <- function(winrow) {
     rcurses.addstr(gb.scrn, str_dup(' ', gb.winwid-1), winrow, 0)
 }
@@ -711,8 +712,8 @@ cleancursesthings <- function() {
 }
 
 errormsg <- function(err) {
-    blankline(gb.msgline)
-    rcurses.addstr(gb.scrn,err,gb.msgline,0)
+    blankline(gb.msgline-1)
+    rcurses.addstr(gb.scrn,err,gb.msgline-1,0)  # rcurses is 0-based
     rcurses.refresh(gb.scrn)
 }
 
@@ -775,6 +776,9 @@ debugR <- function(filename) {
         fullcmd <- getusercmd()
         # specifies the command without params
         cmd = str_split(fullcmd," ",simplify=TRUE)[1]
+
+        # clear error msg after user input (i.e. after they saw it)
+        errormsg("")
 
         # check for Next or Continue
         if (cmd == 'n' || cmd == 's' || cmd == 'c') {
