@@ -37,10 +37,14 @@ ndigs <- function(n) {
     return(nchar(toString(n)))
 }
 
-# paints a row in the screen, in the designated color
+# writes a row in the screen, in the designated color.
 # winrow is 1-based
-paintcolorline <- function(winrow,whattopaint,colorpair) {
-    whattopaint <- paste0(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
+writeline <- function(winrow,whattopaint,colorpair=NULL) {
+    # Pad whattopaint with the right number of trailing spaces
+    # to get a full row.
+    whattopaint <- str_c(whattopaint,strrep(' ',gb.winwid - nchar(whattopaint)))
+
+    # Paint the line to the console with rcurses.
     rcurses.addstr(gb.scrn,whattopaint,winrow-1,0,colorpair)
 
     # manadatory return statement
@@ -59,15 +63,14 @@ dispsrc <- function(srcstartrow) {
     for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
         if (substr(gb.srclines[i],gb.Nplace,gb.Nplace) == 'N') {
             if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
-                paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(3))
+                writeline(winrow,gb.srclines[i],rcurses.color_pair(3))
             } else {
-                paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(2))
+                writeline(winrow,gb.srclines[i],rcurses.color_pair(2))
             }
         } else if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
-            paintcolorline(winrow,gb.srclines[i],rcurses.color_pair(1))
+            writeline(winrow,gb.srclines[i],rcurses.color_pair(1))
         } else {
-            # subtract 1 from winrow because rcurses.addstr() is 0-based.
-            rcurses.addstr(gb.scrn,gb.srclines[i],winrow-1,0)
+            writeline(winrow,gb.srclines[i])
         }
         winrow <- winrow + 1
     }
@@ -279,7 +282,7 @@ updatecolor <- function(wrow, linenum) {
     } else {
         colorpair = rcurses.color_pair(0)
     }
-    paintcolorline(wrow,tmp,colorpair)
+    writeline(wrow,tmp,colorpair)
     rcurses.refresh(gb.scrn)
 }
 
@@ -303,8 +306,9 @@ updatenext <- function(newnextlinenum) {
 }
 
 # blank out the given line in the current window
+# winrow is 1-based
 blankline <- function(winrow) {
-    rcurses.addstr(gb.scrn, str_dup(' ', gb.winwid-1), winrow, 0)
+    writeline(winrow,str_dup(' ', gb.winwid-1))
 }
 
 # when we hit a pause, or exit the R debugger, this function will
@@ -352,9 +356,9 @@ checkdbgsink <- function() {
             linenum = gb.nextlinenum
             winrow = linenum - gb.firstdisplayedlineno + 1
             rplcsrcline(linenum,gb.Nplace,' ')
-            paintcolorline(winrow,gb.srclines[linenum],rcurses.color_pair(0))
+            writeline(winrow,gb.srclines[linenum],rcurses.color_pair(0))
             gb.papcmd <<- ''
-            blankline(gb.winlen + 2)
+            blankline(gb.winlen + 3)
             rcurses.refresh(gb.scrn)
         }
     }
@@ -415,7 +419,7 @@ doprint <- function(cmd) {
     ds = file("dbgsink", "r")
     printedline = tail(readLines(ds, n=-1), 1)
     toprint = str_c(expressiontoprint, " = ", printedline)
-    paintcolorline(gb.msgline,toprint,rcurses.color_pair(0))
+    writeline(gb.msgline,toprint,rcurses.color_pair(0))
     close(ds)
 }
 
@@ -610,6 +614,12 @@ dopls <- function() {
     sendtoscreen(tosend)
 }
 
+dopenv <- function(cmd) {
+    e = str_split(cmd," ",simplify=TRUE)[2]  # the environment to print contents of
+    tosend = str_c("ls.str(", e, ")")
+    sendtoscreen(tosend)
+}
+
 doquitbrowser <- function() {
     sendtoscreen('Q')
     oldnextlinenum = gb.nextlinenum
@@ -621,7 +631,7 @@ doquitbrowser <- function() {
         }
     }
     gb.papcmd <<- ''
-    blankline(gb.winlen + 2)
+    blankline(gb.winlen + 3)
 }
 
 dohelp <- function() {
@@ -706,7 +716,7 @@ cleancursesthings <- function() {
 
 errormsg <- function(err) {
     blankline(gb.msgline)
-    rcurses.addstr(gb.scrn,err,gb.msgline,0)
+    writeline(gb.msgline,err)
     rcurses.refresh(gb.scrn)
 }
 
@@ -757,18 +767,19 @@ debugR <- function(filename) {
         # set console
         tmp <- (gb.winwid - 1 - nchar(' h for help ')) / 2
 
-        # text for the help bar
-        helpbar <- str_c(str_dup(' ',tmp),' h for help ',str_dup(' ',tmp))
-
         # put the help bar on the screen
-        rcurses.addstr(gb.scrn,helpbar,gb.winlen,0,rcurses.A_REVERSE)
+        helpbartext <- str_c(str_dup(' ',tmp),' h for help ',str_dup(' ',tmp))
+        writeline(gb.winlen+1,helpbartext,rcurses.A_REVERSE)
 
-        
-        rcurses.addstr(gb.scrn,str_dup(' ',gb.winwid - 1),gb.winlen + 1,0)
+        # clear user's previous input
+        writeline(gb.winlen+2,str_dup(' ',gb.winwid - 1))
 
         fullcmd <- getusercmd()
         # specifies the command without params
         cmd = str_split(fullcmd," ",simplify=TRUE)[1]
+
+        # clear error msg after user input (i.e. after they saw it)
+        errormsg("")
 
         # check for Next or Continue
         if (cmd == 'n' || cmd == 's' || cmd == 'c') {
@@ -817,6 +828,10 @@ debugR <- function(filename) {
 
         else if (cmd == 'pls') {
             dopls()
+        }
+
+        else if (cmd == 'penv') {
+            dopenv(fullcmd)
         }
 
         # check for Print command
@@ -922,6 +937,9 @@ debugR <- function(filename) {
 # pc expr:  Print expression to Console
 # pcap expr:  Print expression to Console at each Pause 
 # upcap:  cancel pcap
+#
+# pls: print local variables (including args) of the current function
+# penv e: print contents of the environment e
 # 
 # down: scroll down
 # up: scroll down
