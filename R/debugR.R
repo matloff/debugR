@@ -430,9 +430,9 @@ dopap <- function(cmd) {
     pcmd = str_split(cmd," ",simplify=TRUE)[1]
     expressiontoprint = removefirsttokens(1,cmd)
     if (pcmd == 'pcap') {
-        gb.papcmd = str_c('pc ', expressiontoprint)
+        gb.papcmd <<- str_c('pc ', expressiontoprint)
     } else {
-        gb.papcmd = str_c('p ', expressiontoprint)
+        gb.papcmd <<- str_c('p ', expressiontoprint)
     }
     doprint(gb.papcmd)
 }
