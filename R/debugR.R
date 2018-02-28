@@ -357,7 +357,7 @@ checkdbgsink <- function() {
         } else if (found[1] == 'exiting') {
             linenum = gb.nextlinenum
             winrow = linenum - gb.firstdisplayedlineno + 1
-            rplcsrcline(linenum,gb.Nplace,' ')
+            rplcsrcline(linenum,gb.Nplace,' ')  # there's no longer a "next" line
             writeline(winrow,gb.srclines[linenum],rcurses.color_pair(0))
             gb.papcmd <<- ''
             blankline(gb.srcpanellen + 3)
@@ -374,7 +374,7 @@ dostep <- function(cmd) {
         currline <- gb.srclines[gb.nextlinenum]
         currline <- str_sub(currline, (gb.Dplace+1))  # remove line number etc.
         ftnpart <- str_trim(currline, "left")  # remove leading whitespace
-        parenplace <- str_locate(ftnpart, '(')[1]
+        parenplace <- str_locate(ftnpart, '\\(')[1]
         ftnname <- str_sub(ftnpart, 1, parenplace-1)
         cmd = str_c("debugonce(", ftnname, "); c")
     }
