@@ -1,4 +1,28 @@
-# this is the R version of debugR.py
+
+# debugR.R, a debugging tool for the R programming language    
+
+# see Known Issues at end of this file
+
+# produces a window into the debuggee's source file(s); cursor will move
+# in this window as the user single-steps through the source, etc.; user
+# submits comments, e.g. n for next statement, from within this window,
+# rarely if ever needing to shift focus to the R window
+
+# usage: (in R terminal) debugR("primary_source_file.R")
+
+# basic idea:  this program starts up the Unix/Linux "screen" utility
+# (to be replaced with a pipe version in the near future), then starts
+# up R within "screen"; when the user gives a debug command to this
+# program, the latter sends it to R via the "-X stuff" command within
+# "screen"; R, meanwhile, records debugging information, especially
+# current source file name and line number, in a file, which is read by
+# this program to update the cursor position
+
+# stored source lines are prepended with (1-based) line number in source
+# file, and possibly 'N' to indicate next line to be executed, and/or
+# 'D' ("debug") to indicate a line where execution is to be paused
+
+# Author:  Norm Matloff
 
 suppressMessages(library(rcurses))
 library(stringr)
