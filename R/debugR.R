@@ -410,6 +410,13 @@ dostep <- function(cmd) {
     }
 }
 
+# Send "f" to screen. Assumes screen is in debugging mode.
+dof <- function() {
+    sendtoscreen("f")
+    Sys.sleep(0.5)
+    checkdbgsink()
+}
+
 # run the debuggee call
 dorun <- function(cmd) {
     # if function to call was specified, run it; otherwise, run the last one
@@ -810,6 +817,10 @@ debugR <- function(filename) {
         # check for Next or Continue
         if (cmd == 'n' || cmd == 's' || cmd == 'c') {
             dostep(fullcmd)
+        }
+
+        else if (cmd == 'f') {
+            dof()
         }
 
         # check for Debug Ftn command
