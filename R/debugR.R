@@ -216,8 +216,12 @@ initrdebug <- function() {
     # a server that is run here; the throttling then probably won't be
     # necessary, and conditional breakpoint will be faster
     file.create('dbgsink')
-    sendtoscreen("sink(\'dbgsink\',split=T)")
+    sendtoscreen("sink(\'dbgsink\',type=\'output\',split=T)")
     gb.ds <<- file("dbgsink", "r")
+
+    file.create('dbgerrorsink')
+    sendtoscreen("dbgerrorsink <- file(\'dbgerrorsink\',open=\'w\')")
+    sendtoscreen("sink(dbgerrorsink,type=\'message\')")
 }
 
 # Returns all the latest lines in the sink file that have not yet been
@@ -734,6 +738,14 @@ getusercmd <- function() {
     }
 }
 
+setupscreen <- function() {
+    # start "screen, with name 'rdebug' for now
+    system('xterm -e "screen -S \'rdebug\'" &')
+    # start R within screen
+    Sys.sleep(1)
+    sendtoscreen('R --no-save -q')
+}
+
 debugR <- function(filename) {
     # check for existing 'screen' sessions with name 'rdebug'
     tmp <- system('screen -ls | grep rdebug')
@@ -743,11 +755,7 @@ debugR <- function(filename) {
         return(NULL)
     }
 
-    # start "screen, with name 'rdebug' for now
-    system('xterm -e "screen -S \'rdebug\'" &')
-    # start R within screen
-    Sys.sleep(1)
-    sendtoscreen('R --no-save -q')
+    setupscreen()
     initcursesthings()
 
     # save the file name in a global variable
@@ -889,6 +897,8 @@ debugR <- function(filename) {
 
         # check for End Session command (stops R, screen and exits Python)
         else if (cmd == 'es') {
+            sendtoscreen("sink(type=\'message\')")  # close error sink
+            sendtoscreen("close(dbgerrorsink)")  # close error sink file
             sendtoscreen('quit()')
             sendtoscreen('exit')
             system('killall screen')
