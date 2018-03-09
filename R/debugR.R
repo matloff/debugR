@@ -23,6 +23,7 @@ gb.helpbarindex <- -1  # 1-based row index saying where to put the helpbar
 gb.userinputindex <- -1  # 1-based row index saying where to put user input
 gb.msgline <- NULL  # 1-based row index saying where to put messages on window
 gb.ds <- NULL  # file handle for dbgsink file
+gb.eds <- NULL  # file handle for dbgerrorsink file
 gb.bpconds <- c()  # dictionary of breakpoints
 gb.prevcmd <- ""  # last user command
 gb.helpfile <- FALSE
@@ -188,6 +189,23 @@ sendtoscreen <- function(cmd) {
     system(tosend)
 }
 
+checkdbgerrorsink <- function() {
+    # Position the connection to where it's already positioned.
+    # Oddly, I seem to have to do this seek() command, or else gb.eds
+    # won't recognize any lines that have been appended to the file since
+    # the last time readLines() was called on gb.eds.
+    seek(gb.eds, where=seek(gb.eds), origin="start")
+
+    # Should never be more than one line, assuming:
+    # a) an R command produces at most one error message.
+    # b) the error debug sink is read from each time an R
+    # command is sent to screen.
+    line = readLines(gb.eds, n=-1)
+
+    if (length(line) > 0)
+        errormsg(line)
+}
+
 # initialize various globals dealing with the source file
 initsrcthings <- function() {
     # w(match.call()[[1]])
@@ -222,6 +240,7 @@ initrdebug <- function() {
     file.create('dbgerrorsink')
     sendtoscreen("dbgerrorsink <- file(\'dbgerrorsink\',open=\'w\')")
     sendtoscreen("sink(dbgerrorsink,type=\'message\')")
+    gb.eds <<- file("dbgerrorsink", "r")
 }
 
 # Returns all the latest lines in the sink file that have not yet been
@@ -916,6 +935,11 @@ debugR <- function(filename) {
         # command not recognized
         else {
             errormsg('no such command')
+        }
+
+        # Debug error sink may not yet be set up.
+        if (!is.null(gb.eds)) {
+            checkdbgerrorsink()  # report any error in screen to user
         }
 
         # save previous command
