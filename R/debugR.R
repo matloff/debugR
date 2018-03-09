@@ -890,9 +890,9 @@ debugR <- function(filename) {
         # check for End Session command (stops R, screen and exits Python)
         else if (cmd == 'es') {
             sendtoscreen('quit()')
-            sendtoscreen('killall screen')
-            sendtoscreen('screen -wipe')
             sendtoscreen('exit')
+            system('killall screen')
+            system('screen -wipe')
             cleancursesthings()
             close(gb.ds)
             break
