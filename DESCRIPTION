@@ -10,9 +10,7 @@ Authors@R: c(person("Norm", "Matloff", email = "normmatloff@gmail.com",
 Maintainer: Norm Matloff <normmatloff@gmail.com>
 Description: Sophisticated debugging tool for R code, with advanced and
              novel features. General tutorial on techniques for debugging.
-Imports:
-    rcurses
-    stringr
+Imports: rcurses, stringr
 Depends: stats,utils
 ByteCompile: yes
 NeedsCompilation: no
