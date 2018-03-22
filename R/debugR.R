@@ -50,6 +50,8 @@ gb.ds <- NULL  # file handle for dbgsink file
 gb.bpconds <- c()  # dictionary of breakpoints
 gb.prevcmd <- ""  # last user command
 gb.helpfile <- FALSE
+gb.Nplace <- -1
+gb.Dplace <- -1
 
 # debugging function, prints variable name with variable value
 p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
