@@ -28,30 +28,31 @@ suppressMessages(library(rcurses))
 library(stringr)
 
 # all globals packaged here
-gb.scrn <- NULL  # will point to window object
-gb.row <- NULL  # current row position of cursor within window
-gb.src <- NULL  # handle for the current source file
-gb.srclen <- NULL  # length in lines of the current source file
-gb.srcpanellen <- NULL  # length in lines of the panel for displaying the source code
-gb.winwidth <- NULL  # width in characters of the window
-gb.srclines <- NULL  # contents of source file, list of strings, 1 per src line
-gb.maxdigits <- NULL  # number of digits in the longest line number
-gb.firstdisplayedlineno <- NULL  # source line number now displayed at top of window; starts at 0
-gb.currsrcfilename <- NULL  # name of source file currently in window
-gb.nextlinenum <- NA  # source line number to be executed next; starts at 1
-gb.ftns <- NULL  # dictionary of function line numberss, indexed by function name
-gb.debuggeecall <- NULL  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
-gb.scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
-gb.papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
-gb.helpbarindex <- -1  # 1-based row index saying where to put the helpbar
-gb.userinputindex <- -1  # 1-based row index saying where to put user input
-gb.msgline <- NULL  # 1-based row index saying where to put messages on window
-gb.ds <- NULL  # file handle for dbgsink file
-gb.bpconds <- c()  # dictionary of breakpoints
-gb.prevcmd <- ""  # last user command
-gb.helpfile <- FALSE
-gb.Nplace <- -1
-gb.Dplace <- -1
+debugr <- new.env()
+debugr$scrn <- NULL  # will point to window object
+debugr$row <- NULL  # current row position of cursor within window
+debugr$src <- NULL  # handle for the current source file
+debugr$srclen <- NULL  # length in lines of the current source file
+debugr$srcpanellen <- NULL  # length in lines of the panel for displaying the source code
+debugr$winwidth <- NULL  # width in characters of the window
+debugr$srclines <- NULL  # contents of source file, list of strings, 1 per src line
+debugr$maxdigits <- NULL  # number of digits in the longest line number
+debugr$firstdisplayedlineno <- NULL  # source line number now displayed at top of window; starts at 0
+debugr$currsrcfilename <- NULL  # name of source file currently in window
+debugr$nextlinenum <- NA  # source line number to be executed next; starts at 1
+debugr$ftns <- NULL  # dictionary of function line numberss, indexed by function name
+debugr$debuggeecall <- NULL  # previous call to run debuggee, e.g. 'mybuggyfun(3)'
+debugr$scroll <- 20  # amount to scroll in response to 'up' and 'down' cmds
+debugr$papcmd <- ""  # expression to be printed at each pause (after n/s/c cmd)
+debugr$helpbarindex <- -1  # 1-based row index saying where to put the helpbar
+debugr$userinputindex <- -1  # 1-based row index saying where to put user input
+debugr$msgline <- NULL  # 1-based row index saying where to put messages on window
+debugr$ds <- NULL  # file handle for dbgsink file
+debugr$bpconds <- c()  # dictionary of breakpoints
+debugr$prevcmd <- ""  # last user command
+debugr$helpfile <- FALSE
+debugr$Nplace <- -1
+debugr$Dplace <- -1
 
 # debugging function, prints variable name with variable value
 p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
@@ -70,68 +71,68 @@ ndigs <- function(n) {
 writeline <- function(winrow,whattopaint,colorpair=NULL) {
     # Pad whattopaint with the right number of trailing spaces
     # to get a full row.
-    whattopaint <- str_c(whattopaint,strrep(' ',gb.winwidth - nchar(whattopaint)))
+    whattopaint <- str_c(whattopaint,strrep(' ',debugr$winwidth - nchar(whattopaint)))
 
     # Paint the line to the console with rcurses.
-    rcurses.addstr(gb.scrn,whattopaint,winrow-1,0,colorpair)
+    rcurses.addstr(debugr$scrn,whattopaint,winrow-1,0,colorpair)
 
     # manadatory return statement
     return(NULL)
 }
 
 # this function displays the current source file, starting at the top of
-# the screen, and beginning with the row srcstartrow in gb.srclines.
+# the screen, and beginning with the row srcstartrow in debugr$srclines.
 # srcstartrow is 1-based.
 dispsrc <- function(srcstartrow) {
-    rcurses.clear(gb.scrn)
+    rcurses.clear(debugr$scrn)
     winrow <- 1
-    nlinestoshow <- min(gb.srclen - srcstartrow + 1,gb.srcpanellen)
+    nlinestoshow <- min(debugr$srclen - srcstartrow + 1,debugr$srcpanellen)
 
     # paint each line of the window
     for (i in srcstartrow:(srcstartrow + nlinestoshow - 1)) {
-        if (substr(gb.srclines[i],gb.Nplace,gb.Nplace) == 'N') {
-            if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
-                writeline(winrow,gb.srclines[i],rcurses.color_pair(3))
+        if (substr(debugr$srclines[i],debugr$Nplace,debugr$Nplace) == 'N') {
+            if (substr(debugr$srclines[i],debugr$Dplace,debugr$Dplace) == 'D') {
+                writeline(winrow,debugr$srclines[i],rcurses.color_pair(3))
             } else {
-                writeline(winrow,gb.srclines[i],rcurses.color_pair(2))
+                writeline(winrow,debugr$srclines[i],rcurses.color_pair(2))
             }
-        } else if (substr(gb.srclines[i],gb.Dplace,gb.Dplace) == 'D') {
-            writeline(winrow,gb.srclines[i],rcurses.color_pair(1))
+        } else if (substr(debugr$srclines[i],debugr$Dplace,debugr$Dplace) == 'D') {
+            writeline(winrow,debugr$srclines[i],rcurses.color_pair(1))
         } else {
-            writeline(winrow,gb.srclines[i])
+            writeline(winrow,debugr$srclines[i])
         }
         winrow <- winrow + 1
     }
-    gb.firstdisplayedlineno <<- srcstartrow
-    rcurses.refresh(gb.scrn)
+    debugr$firstdisplayedlineno <- srcstartrow
+    rcurses.refresh(debugr$scrn)
 
     # manadatory return statement
     return(NULL)
 }
 
 # this function reads in the source file from disk, and copies it to the
-# list gb.srclines, with each source file being prepended by the line
+# list debugr$srclines, with each source file being prepended by the line
 # number
 inputsrc <- function(filename) {
     lns <- readLines(filename)
 
     
-    gb.srclen <<- length(lns)
+    debugr$srclen <- length(lns)
 
     
-    gb.maxdigits <<- ndigs(length(lns) + 1)
+    debugr$maxdigits <- ndigs(length(lns) + 1)
 
     # location of 'N', if any
-    gb.Nplace <<- gb.maxdigits + 2
+    debugr$Nplace <- debugr$maxdigits + 2
 
     # location of 'D', if any
-    gb.Dplace <<- gb.maxdigits + 3
+    debugr$Dplace <- debugr$maxdigits + 3
 
     
     lnno <- 1
 
     
-    gb.srclines <<- c()
+    debugr$srclines <- c()
 
     
     for (lineNum in 1:length(lns)) {
@@ -140,7 +141,7 @@ inputsrc <- function(filename) {
         ndl <- ndigs(lineNum)
 
         
-        tmp <- rep(' ',gb.maxdigits - ndl)
+        tmp <- rep(' ',debugr$maxdigits - ndl)
 
         
         tmp <- paste0(tmp,toString(lineNum),' ')
@@ -153,9 +154,9 @@ inputsrc <- function(filename) {
         tmp <- paste0(tmp,lns[lineNum])
 
         
-        ntrunclinechars <- min(gb.winwidth,nchar(tmp))
+        ntrunclinechars <- min(debugr$winwidth,nchar(tmp))
 
-        gb.srclines <<- c(gb.srclines, substr(tmp,1,ntrunclinechars))
+        debugr$srclines <- c(debugr$srclines, substr(tmp,1,ntrunclinechars))
     }
 
     
@@ -180,14 +181,14 @@ rplc <- function(s,k,r) {
     return(paste0(front,r,back))
 }
 
-# substitutes s starting at linepos in line lineno of gb.srclines; this
+# substitutes s starting at linepos in line lineno of debugr$srclines; this
 # function does NOT paint the screen, and indeed the given line may be
 # currently off the screen; mainly used to add an 'N' or 'D' designation
 # in a source line.
 # lineno is 1-based.
 rplcsrcline <- function(lineno,linepos,s) {
     # add s into source line lineno at position linepos
-    gb.srclines[lineno] <<- rplc(gb.srclines[lineno],linepos,s)
+    debugr$srclines[lineno] <- rplc(debugr$srclines[lineno],linepos,s)
 
     # manadatory return statement
     return(NULL)
@@ -219,16 +220,16 @@ initsrcthings <- function() {
     # w(match.call()[[1]])
 
     
-    gb.nextlinenum <<- 1
+    debugr$nextlinenum <- 1
 
     
-    inputsrc(gb.currsrcfilename)
+    inputsrc(debugr$currsrcfilename)
 
     
-    rplcsrcline(1,gb.Nplace,'N')
+    rplcsrcline(1,debugr$Nplace,'N')
 
     
-    dispsrc(gb.nextlinenum)
+    dispsrc(debugr$nextlinenum)
 
     # manadatory return statement
     return(NULL)
@@ -243,7 +244,7 @@ initrdebug <- function() {
     # necessary, and conditional breakpoint will be faster
     file.create('dbgsink')
     sendtoscreen("sink(\'dbgsink\',split=T)")
-    gb.ds <<- file("dbgsink", "r")
+    debugr$ds <- file("dbgsink", "r")
 }
 
 # Returns all the latest lines in the sink file that have not yet been
@@ -252,12 +253,12 @@ initrdebug <- function() {
 # (if anything) (e.g. which function is being debugged).
 readfromgbds <- function() {
     # Position the connection to where it's already positioned.
-    # Oddly, I seem to have to do this seek() command, or else gb.ds
+    # Oddly, I seem to have to do this seek() command, or else debugr$ds
     # won't recognize any lines that have been appended to the file since
-    # the last time readLines() was called on gb.ds.
-    seek(gb.ds, where=seek(gb.ds), origin="start")
+    # the last time readLines() was called on debugr$ds.
+    seek(debugr$ds, where=seek(debugr$ds), origin="start")
 
-    lines = readLines(gb.ds, n=-1)
+    lines = readLines(debugr$ds, n=-1)
     return(lines)
 }
 
@@ -266,8 +267,8 @@ readfromgbds <- function() {
 # line 
 finddebugline <- function() {
     # go back to start of file to read all lines
-    # seek(gb.ds, where=0, origin="start")
-    # sinkfilelines <- readLines(gb.ds, n=-1)
+    # seek(debugr$ds, where=0, origin="start")
+    # sinkfilelines <- readLines(debugr$ds, n=-1)
     sinkfilelines <- readfromgbds()
 
     numlines <- length(sinkfilelines)
@@ -281,7 +282,7 @@ finddebugline <- function() {
         # debug at test.R#9: {
         # test.R#4
         else if (!is.na(str_locate(sinkfilelines[i],
-            str_c(gb.currsrcfilename,"#"))[1])) {
+            str_c(debugr$currsrcfilename,"#"))[1])) {
             return(c('debug', sinkfilelines[i]))
         }
     }
@@ -290,43 +291,43 @@ finddebugline <- function() {
 
 # determines if linenum of the current src is in the current window
 inwin <- function(linenum) {
-    firstdisp = gb.firstdisplayedlineno
-    return (linenum >= firstdisp && linenum < firstdisp + gb.srcpanellen)
+    firstdisp = debugr$firstdisplayedlineno
+    return (linenum >= firstdisp && linenum < firstdisp + debugr$srcpanellen)
 }
 
 # change the highlighting color of a line that's in the current window,
 # to reflect that it's the current line or a pause line
 # wrow is 1-based.
 updatecolor <- function(wrow, linenum) {
-    tmp = gb.srclines[linenum]
-    if (str_sub(tmp, gb.Nplace, gb.Nplace) == 'N') {
-        if (str_sub(tmp, gb.Dplace, gb.Dplace) == 'D') {
+    tmp = debugr$srclines[linenum]
+    if (str_sub(tmp, debugr$Nplace, debugr$Nplace) == 'N') {
+        if (str_sub(tmp, debugr$Dplace, debugr$Dplace) == 'D') {
             colorpair = rcurses.color_pair(3)
         } else {
             colorpair = rcurses.color_pair(2)
         }
-    } else if (str_sub(tmp, gb.Dplace, gb.Dplace) == 'D') {
+    } else if (str_sub(tmp, debugr$Dplace, debugr$Dplace) == 'D') {
         colorpair = rcurses.color_pair(1)
     } else {
         colorpair = rcurses.color_pair(0)
     }
     writeline(wrow,tmp,colorpair)
-    rcurses.refresh(gb.scrn)
+    rcurses.refresh(debugr$scrn)
 }
 
 # update the indicators, e.g. N mark, of where the next line to be
 # executed is; newnextlinenum is 1-based
 updatenext <- function(newnextlinenum) {
-    oldnextlinenum = gb.nextlinenum
-    rplcsrcline(oldnextlinenum,gb.Nplace,' ')
+    oldnextlinenum = debugr$nextlinenum
+    rplcsrcline(oldnextlinenum,debugr$Nplace,' ')
     if (inwin(oldnextlinenum)) {
-        winrow = oldnextlinenum - gb.firstdisplayedlineno + 1
+        winrow = oldnextlinenum - debugr$firstdisplayedlineno + 1
         updatecolor(winrow,oldnextlinenum)
     }
-    gb.nextlinenum <<- newnextlinenum
-    rplcsrcline(newnextlinenum,gb.Nplace,'N')
+    debugr$nextlinenum <- newnextlinenum
+    rplcsrcline(newnextlinenum,debugr$Nplace,'N')
     if (inwin(newnextlinenum)) {
-        winrow = newnextlinenum - gb.firstdisplayedlineno + 1
+        winrow = newnextlinenum - debugr$firstdisplayedlineno + 1
         updatecolor(winrow,newnextlinenum)
     } else {
         dispsrc(newnextlinenum)
@@ -336,7 +337,7 @@ updatenext <- function(newnextlinenum) {
 # blank out the given line in the current window
 # winrow is 1-based
 blankline <- function(winrow) {
-    writeline(winrow,str_dup(' ', gb.winwidth-1))
+    writeline(winrow,str_dup(' ', debugr$winwidth-1))
 }
 
 # when we hit a pause, or exit the R debugger, this function will
@@ -362,18 +363,18 @@ checkdbgsink <- function() {
             if (iscondbphere(linenum)) {  # if conditional breakpoint
                 # Print the condition of the conditional breakpoint so we
                 # can its value (true/false).
-                doprint(str_c('p ',gb.bpconds[linenum]))
+                doprint(str_c('p ',debugr$bpconds[linenum]))
 
                 # go back to start of file to read all lines, so we can read
                 # last line (doesn't seem to be a cleaner way).
-                # seek(gb.ds, where=0, origin="start")
-                # sinkfilelines <- readLines(gb.ds, n=-1)
+                # seek(debugr$ds, where=0, origin="start")
+                # sinkfilelines <- readLines(debugr$ds, n=-1)
                 sinkfilelines <- readfromgbds()
                 lastline = sinkfilelines[length(sinkfilelines)]
 
                 # if bp condition doesn't hold, do not stop at it
                 if (!is.na(str_locate(lastline, "FALSE")[1])) {
-                    if (gb.prevcmd != "n") {
+                    if (debugr$prevcmd != "n") {
                         dostep("c")
                         return()
                     }
@@ -381,13 +382,13 @@ checkdbgsink <- function() {
             }
             updatenext(linenum)
         } else if (found[1] == 'exiting') {
-            linenum = gb.nextlinenum
-            winrow = linenum - gb.firstdisplayedlineno + 1
-            rplcsrcline(linenum,gb.Nplace,' ')  # there's no longer a "next" line
-            writeline(winrow,gb.srclines[linenum],rcurses.color_pair(0))
-            gb.papcmd <<- ''
-            blankline(gb.srcpanellen + 3)
-            rcurses.refresh(gb.scrn)
+            linenum = debugr$nextlinenum
+            winrow = linenum - debugr$firstdisplayedlineno + 1
+            rplcsrcline(linenum,debugr$Nplace,' ')  # there's no longer a "next" line
+            writeline(winrow,debugr$srclines[linenum],rcurses.color_pair(0))
+            debugr$papcmd <- ''
+            blankline(debugr$srcpanellen + 3)
+            rcurses.refresh(debugr$scrn)
         }
     }
 }
@@ -397,8 +398,8 @@ dostep <- function(cmd) {
         # assumes an isolated function call, e.g. not a call within a
         # call, so function name is the first non-whitespace char in the
         # line, and ')' immediately follows the function name
-        currline <- gb.srclines[gb.nextlinenum]
-        currline <- str_sub(currline, (gb.Dplace+1))  # remove line number etc.
+        currline <- debugr$srclines[debugr$nextlinenum]
+        currline <- str_sub(currline, (debugr$Dplace+1))  # remove line number etc.
         ftnpart <- str_trim(currline, "left")  # remove leading whitespace
         parenplace <- str_locate(ftnpart, '\\(')[1]
         ftnname <- str_sub(ftnpart, 1, parenplace-1)
@@ -407,8 +408,8 @@ dostep <- function(cmd) {
     sendtoscreen(cmd)
     Sys.sleep(0.25)
     checkdbgsink()
-    if (gb.papcmd != "") {
-        doprint(gb.papcmd)
+    if (debugr$papcmd != "") {
+        doprint(debugr$papcmd)
     }
 }
 
@@ -423,9 +424,9 @@ dof <- function() {
 dorun <- function(cmd) {
     # if function to call was specified, run it; otherwise, run the last one
     if (cmd != "rn") {
-        gb.debuggeecall <<- str_split(cmd, " ", simplify=TRUE)[2]
+        debugr$debuggeecall <- str_split(cmd, " ", simplify=TRUE)[2]
     }
-    sendtoscreen(gb.debuggeecall)
+    sendtoscreen(debugr$debuggeecall)
     Sys.sleep(0.5)
     checkdbgsink()
 }
@@ -454,7 +455,7 @@ doprint <- function(cmd) {
     ds = file("dbgsink", "r")
     printedline = tail(readLines(ds, n=-1), 1)
     toprint = str_c(expressiontoprint, " = ", printedline)
-    writeline(gb.msgline,toprint,rcurses.color_pair(0))
+    writeline(debugr$msgline,toprint,rcurses.color_pair(0))
     close(ds)
 }
 
@@ -463,18 +464,18 @@ dopap <- function(cmd) {
     pcmd = str_split(cmd," ",simplify=TRUE)[1]
     expressiontoprint = removefirsttokens(1,cmd)
     if (pcmd == 'pcap') {
-        gb.papcmd <<- str_c('pc ', expressiontoprint)
+        debugr$papcmd <- str_c('pc ', expressiontoprint)
     } else {
-        gb.papcmd <<- str_c('p ', expressiontoprint)
+        debugr$papcmd <- str_c('p ', expressiontoprint)
     }
-    doprint(gb.papcmd)
+    doprint(debugr$papcmd)
 }
 
 # given (1-based) line number in current source file, returns the name
 # of the function that begins on that line. if no function there,
 # returns NA.
 findftnnamebylinenum <- function(linenum) {
-    srcline <- gb.srclines[linenum]
+    srcline <- debugr$srclines[linenum]
     srcline <- str_split(srcline, " ", simplify=TRUE)
     fnamepos <- match("<-", srcline) - 1  # func name is 1 token before <-
     if (is.na(fnamepos)) {
@@ -488,7 +489,7 @@ findftnnamebylinenum <- function(linenum) {
 # (1-based) number of the line at which it begins. if fail to find
 # function, returns NA.
 findftnlinenumbyname <- function(fname) {
-    for (i in 1:length(gb.srclines)) {
+    for (i in 1:length(debugr$srclines)) {
         possiblefname = findftnnamebylinenum(i)
         if (!is.na(possiblefname)) {  # if there was a function declared on this line
             if (possiblefname == fname) {
@@ -507,7 +508,7 @@ findenclosingftn <- function(linenum) {
     # find name of the enclosing function.
     i = linenum
     while (i > 0) {
-        line = gb.srclines[i]
+        line = debugr$srclines[i]
         # if function on this line
         if (!is.na(str_locate(line,"<- function")[1])) {
             fname = findftnnamebylinenum(i)
@@ -550,13 +551,13 @@ dodf <- function(cmd) {
 
     # mark the src line D for "debug", blank out the D if undebug
     if (cmdparts[1] == "df") {
-        rplcsrcline(fline,gb.Dplace,'D')
+        rplcsrcline(fline,debugr$Dplace,'D')
     } else {
-        rplcsrcline(fline,gb.Dplace,' ')
+        rplcsrcline(fline,debugr$Dplace,' ')
     }
 
     # if it's currently on the screen, update there
-    firstdisp = gb.firstdisplayedlineno
+    firstdisp = debugr$firstdisplayedlineno
     if (inwin(fline)) {
         winrow = fline - firstdisp + 1
         if (cmdparts[1] == "df") {
@@ -569,8 +570,8 @@ dodf <- function(cmd) {
 
 # call undebug() on all functions currently in debug state
 doudfa <- function() {
-    for (i in 1:length(gb.srclines)) {
-        if (str_sub(gb.srclines[i], gb.Dplace, gb.Dplace) == "D") {
+    for (i in 1:length(debugr$srclines)) {
+        if (str_sub(debugr$srclines[i], debugr$Dplace, debugr$Dplace) == "D") {
             dodf(str_c("udf ", i))
         }
     }
@@ -578,8 +579,8 @@ doudfa <- function() {
 
 # Returns TRUE if there is conditional breakpoint at given 1-based line number.
 iscondbphere <- function(lineno) {
-    if (length(gb.bpconds) > 0)  # if even are any breakpoints
-        return(!is.na(gb.bpconds[lineno]))
+    if (length(debugr$bpconds) > 0)  # if even are any breakpoints
+        return(!is.na(debugr$bpconds[lineno]))
     else
         return(FALSE)
 }
@@ -589,21 +590,21 @@ iscondbphere <- function(lineno) {
 dobp <- function(cmd) {
     cmdparts = str_split(cmd, ' ', simplify=TRUE)
     linenum = cmdparts[2]
-    filename = gb.currsrcfilename
+    filename = debugr$currsrcfilename
     tosend = str_c("setBreakpoint(\'", filename, "\',", linenum, ")")
     sendtoscreen(tosend)
     # mark the src line D for "debug"
     fline = as.integer(linenum)
-    rplcsrcline(fline,gb.Dplace,"D")
+    rplcsrcline(fline,debugr$Dplace,"D")
     # if it's currently on the screen, update there
     if (inwin(fline)) {
-        firstdisp = gb.firstdisplayedlineno
+        firstdisp = debugr$firstdisplayedlineno
         winrow = fline - firstdisp + 1
         updatecolor(winrow,fline)
     }
     # add to our list of conditional breakpoints
     if (length(cmdparts) > 2)  # if conditional breakpoint (condition is 3rd arg)
-        gb.bpconds[fline] <<- removefirsttokens(2,cmd)
+        debugr$bpconds[fline] <- removefirsttokens(2,cmd)
 }
 
 doubp <- function(cmd) {
@@ -615,32 +616,32 @@ doubp <- function(cmd) {
     dodf(str_c("udf ", ftnname))
     sendtoscreen(tosend)
     fline = as.integer(linenum)
-    rplcsrcline(fline,gb.Dplace,' ')
+    rplcsrcline(fline,debugr$Dplace,' ')
     # if it's currently on the screen, update there
     if (inwin(fline)) {
-        firstdisp = gb.firstdisplayedlineno
+        firstdisp = debugr$firstdisplayedlineno
         winrow = fline - firstdisp + 1
         updatecolor(winrow,fline)
     }
     # if there is a conditional breakpoint for this fline
     if (iscondbphere(fline))
-        gb.bpconds[fline] <<- NA
+        debugr$bpconds[fline] <- NA
 }
 
 doreloadsrc <- function(cmd) {
     doudfa()
-    loadsrc = str_c("source(\'", gb.currsrcfilename, "\')")
+    loadsrc = str_c("source(\'", debugr$currsrcfilename, "\')")
     sendtoscreen(loadsrc)
-    inputsrc(gb.currsrcfilename)
+    inputsrc(debugr$currsrcfilename)
 }
 
 dodown <- function() {
-    newstartline = min(gb.firstdisplayedlineno+gb.scroll,gb.srclen)
+    newstartline = min(debugr$firstdisplayedlineno+debugr$scroll,debugr$srclen)
     dispsrc(newstartline)
 }
 
 doup <- function() {
-    newstartline = max(gb.firstdisplayedlineno-gb.scroll,1)
+    newstartline = max(debugr$firstdisplayedlineno-debugr$scroll,1)
     dispsrc(newstartline)
 }
 
@@ -657,20 +658,20 @@ dopenv <- function(cmd) {
 
 doquitbrowser <- function() {
     sendtoscreen('Q')
-    oldnextlinenum = gb.nextlinenum
+    oldnextlinenum = debugr$nextlinenum
     if (!is.na(oldnextlinenum)) {
-        rplcsrcline(oldnextlinenum,gb.Nplace,' ')
+        rplcsrcline(oldnextlinenum,debugr$Nplace,' ')
         if (inwin(oldnextlinenum)) {
-            winrow = oldnextlinenum - gb.firstdisplayedlineno + 1
+            winrow = oldnextlinenum - debugr$firstdisplayedlineno + 1
             updatecolor(winrow,oldnextlinenum)
         }
     }
-    gb.papcmd <<- ''
-    blankline(gb.srcpanellen + 3)
+    debugr$papcmd <- ''
+    blankline(debugr$srcpanellen + 3)
 }
 
 dohelp <- function() {
-    if (!gb.helpfile) {
+    if (!debugr$helpfile) {
         # open this R source file, find the help section, make a tmp
         # file from it, and have R invoke the user's favorite text editor
         # on it.
@@ -691,7 +692,7 @@ dohelp <- function() {
         hfout = file("/tmp/debugRhelp","w")
         cat(hflines,sep="\n",file=hfout)
         close(hfout)
-        gb.helpfile <<- TRUE
+        debugr$helpfile <- TRUE
     }
     tosend = "edit(file=\'/tmp/debugRhelp\')"
     sendtoscreen(tosend)
@@ -702,13 +703,13 @@ initcursesthings <- function() {
     # w(match.call()[[1]])
 
     # initializes the screen for rcurses
-    gb.scrn <<- rcurses.initscr()
+    debugr$scrn <- rcurses.initscr()
 
     # disables line buffering and erase/kill character-processing
     rcurses.cbreak()
 
     # screen will be cleared on next call to refresh
-    rcurses.clear(gb.scrn)
+    rcurses.clear(debugr$scrn)
 
     # allows support of color attributes on terminals
     rcurses.start_color()
@@ -726,19 +727,19 @@ initcursesthings <- function() {
     rcurses.init_pair(8,rcurses.COLOR_BLACK,rcurses.COLOR_WHITE)
 
     # set background color pair
-    rcurses.bkgd(gb.scrn,' ',rcurses.color_pair(8))
+    rcurses.bkgd(debugr$scrn,' ',rcurses.color_pair(8))
 
     # leave 3 lines at the bottom.
-    gb.srcpanellen <<- rcurses.LINES - 3
-    gb.helpbarindex <<- rcurses.LINES - 2
-    gb.userinputindex <<- rcurses.LINES - 1
-    gb.msgline <<- rcurses.LINES  # last line
+    debugr$srcpanellen <- rcurses.LINES - 3
+    debugr$helpbarindex <- rcurses.LINES - 2
+    debugr$userinputindex <- rcurses.LINES - 1
+    debugr$msgline <- rcurses.LINES  # last line
 
-    gb.winwidth <<- rcurses.COLS
+    debugr$winwidth <- rcurses.COLS
 
     
     
-    rcurses.refresh(gb.scrn)
+    rcurses.refresh(debugr$scrn)
 
     # manadatory return statement
     return(NULL)
@@ -750,18 +751,18 @@ cleancursesthings <- function() {
 }
 
 errormsg <- function(err) {
-    blankline(gb.msgline)
-    writeline(gb.msgline,err)
-    rcurses.refresh(gb.scrn)
+    blankline(debugr$msgline)
+    writeline(debugr$msgline,err)
+    rcurses.refresh(debugr$scrn)
 }
 
 getusercmd <- function() {
-    rcurses.move(gb.scrn,gb.userinputindex-1,0)  # rcurses is 0-based, so -1
-    cmd <- rcurses.getstr(gb.scrn)
+    rcurses.move(debugr$scrn,debugr$userinputindex-1,0)  # rcurses is 0-based, so -1
+    cmd <- rcurses.getstr(debugr$scrn)
 
     # if user simply hits Enter, then re-do previous command
-    if (cmd == '' && gb.prevcmd != "") {
-        return(gb.prevcmd)
+    if (cmd == '' && debugr$prevcmd != "") {
+        return(debugr$prevcmd)
     } else {
         return(cmd)
     }
@@ -784,13 +785,13 @@ debugR <- function(filename) {
     initcursesthings()
 
     # save the file name in a global variable
-    gb.currsrcfilename <<- filename
+    debugr$currsrcfilename <- filename
 
     # initialize global variables related to source code
     initsrcthings()
 
     # have R read in the source file to be debugged
-    loadsrc = paste("source(", "\'", gb.currsrcfilename, "\'", ")", sep="")
+    loadsrc = paste("source(", "\'", debugr$currsrcfilename, "\'", ")", sep="")
     sendtoscreen(loadsrc)
 
     initrdebug()
@@ -800,14 +801,14 @@ debugR <- function(filename) {
     while (TRUE) {
 
         # set console
-        tmp <- (gb.winwidth - 1 - nchar(' h for help ')) / 2
+        tmp <- (debugr$winwidth - 1 - nchar(' h for help ')) / 2
 
         # put the help bar on the screen
         helpbartext <- str_c(str_dup(' ',tmp),' h for help ',str_dup(' ',tmp))
-        writeline(gb.helpbarindex,helpbartext,rcurses.A_REVERSE)
+        writeline(debugr$helpbarindex,helpbartext,rcurses.A_REVERSE)
 
         # clear user's previous input
-        writeline(gb.userinputindex,str_dup(' ',gb.winwidth - 1))
+        writeline(debugr$userinputindex,str_dup(' ',debugr$winwidth - 1))
 
         fullcmd <- getusercmd()
         # specifies the command without params
@@ -862,7 +863,7 @@ debugR <- function(filename) {
 
         # check for Undo Print at Pause command
         else if (cmd == 'upap') {
-            gb.papcmd <<- ''
+            debugr$papcmd <- ''
         }
 
         else if (cmd == 'pls') {
@@ -890,7 +891,7 @@ debugR <- function(filename) {
 
         # check for Undo Print to Console at Pause command
         else if (cmd == 'upcap') {
-            gb.papcmd <<- ''
+            debugr$papcmd <- ''
         }
 
         # check for Source Reload command
@@ -912,10 +913,10 @@ debugR <- function(filename) {
         else if (cmd == 'ls') {
             cmdsplit = str_split(cmd, ' ', simplify=TRUE)
             if (length(cmdsplit) > 1) {  # if file name given
-                gb.currsrcfilename <<- cmdsplit[2]
+                debugr$currsrcfilename <- cmdsplit[2]
             }
             initsrcthings()
-            loadsrc = str_c("source(\'",gb.currsrcfilename,"\')")
+            loadsrc = str_c("source(\'",debugr$currsrcfilename,"\')")
             sendtoscreen(loadsrc)
         }
 
@@ -931,7 +932,7 @@ debugR <- function(filename) {
             sendtoscreen('screen -wipe')
             sendtoscreen('exit')
             cleancursesthings()
-            close(gb.ds)
+            close(debugr$ds)
             break
         }
 
@@ -946,7 +947,7 @@ debugR <- function(filename) {
         }
 
         # save previous command
-        gb.prevcmd <<- fullcmd
+        debugr$prevcmd <- fullcmd
     }
 }
 
