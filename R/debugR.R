@@ -768,6 +768,14 @@ getusercmd <- function() {
     }
 }
 
+# Terminates screen terminal.
+endscreen <- function() {
+    sendtoscreen('quit()')
+    sendtoscreen('killall screen')
+    sendtoscreen('screen -wipe')
+    sendtoscreen('exit')
+}
+
 debugR <- function(filename) {
     # check for existing 'screen' sessions with name 'rdebug'
     tmp <- system('screen -ls | grep rdebug')
@@ -927,10 +935,7 @@ debugR <- function(filename) {
 
         # check for End Session command (stops R, screen and exits Python)
         else if (cmd == 'es') {
-            sendtoscreen('quit()')
-            sendtoscreen('killall screen')
-            sendtoscreen('screen -wipe')
-            sendtoscreen('exit')
+            endscreen()
             cleancursesthings()
             close(debugr$ds)
             break
