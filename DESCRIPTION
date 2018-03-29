@@ -10,12 +10,10 @@ Authors@R: c(person("Norm", "Matloff", email = "normmatloff@gmail.com",
 Maintainer: Norm Matloff <normmatloff@gmail.com>
 Description: Sophisticated debugging tool for R code, with advanced and
              novel features. General tutorial on techniques for debugging.
-Imports:
-    rcurses
-    stringr
-Depends: stats,utils
+Imports: rcurses, stringr
+Depends: stats, utils
 ByteCompile: yes
 NeedsCompilation: no
 License: GPL (>= 2)
 URL: https://github.com/matloff/debugR
-BugReports: https://github.com/matloffdebugR/issues
+BugReports: https://github.com/matloff/debugR/issues
