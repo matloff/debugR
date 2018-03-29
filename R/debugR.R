@@ -71,7 +71,7 @@ ndigs <- function(n) {
 writeline <- function(winrow,whattopaint,colorpair=NULL) {
     # Pad whattopaint with the right number of trailing spaces
     # to get a full row.
-    whattopaint <- str_c(whattopaint,strrep(' ',debugr$winwidth - nchar(whattopaint)))
+    whattopaint <- stringr::str_c(whattopaint,strrep(' ',debugr$winwidth - nchar(whattopaint)))
 
     # Paint the line to the console with rcurses.
     rcurses.addstr(debugr$scrn,whattopaint,winrow-1,0,colorpair)
@@ -196,7 +196,7 @@ rplcsrcline <- function(lineno,linepos,s) {
 
 # deletes newline character at the end of s, returning result
 chop <- function(s) {
-    return(str_sub(s, 1, -2))  # cut off last character
+    return(stringr::str_sub(s, 1, -2))  # cut off last character
 }
 
 # sends the command cmd to the "screen session", thus typically to R
@@ -207,10 +207,10 @@ sendtoscreen <- function(cmd) {
     # Unix-family systems; need to expand, checking for non-Unix, for
     # multiple $, etc.; note that R also requires escaping the
     # backslash!
-    dollarIndex = str_locate(tosend, "\\$")[1]
+    dollarIndex = stringr::str_locate(tosend, "\\$")[1]
     if (!is.na(dollarIndex)) {
-        tosend = str_c(str_sub(tosend, 0, dollarIndex-1), "\\",
-            str_sub(tosend,dollarIndex))
+        tosend = stringr::str_c(stringr::str_sub(tosend, 0, dollarIndex-1), "\\",
+            stringr::str_sub(tosend,dollarIndex))
     }
     system(tosend)
 }
@@ -275,14 +275,14 @@ finddebugline <- function() {
     for (i in numlines:1) {
         # Check for line of the form, e.g.:
         # exiting from: g()
-        if (!is.na(str_locate(sinkfilelines[i], "exiting from")[1])) {
+        if (!is.na(stringr::str_locate(sinkfilelines[i], "exiting from")[1])) {
             return(c('exiting', sinkfilelines[i]))
         }
         # Check for line of either form, e.g.:
         # debug at test.R#9: {
         # test.R#4
-        else if (!is.na(str_locate(sinkfilelines[i],
-            str_c(debugr$currsrcfilename,"#"))[1])) {
+        else if (!is.na(stringr::str_locate(sinkfilelines[i],
+            stringr::str_c(debugr$currsrcfilename,"#"))[1])) {
             return(c('debug', sinkfilelines[i]))
         }
     }
@@ -300,13 +300,13 @@ inwin <- function(linenum) {
 # wrow is 1-based.
 updatecolor <- function(wrow, linenum) {
     tmp = debugr$srclines[linenum]
-    if (str_sub(tmp, debugr$Nplace, debugr$Nplace) == 'N') {
-        if (str_sub(tmp, debugr$Dplace, debugr$Dplace) == 'D') {
+    if (stringr::str_sub(tmp, debugr$Nplace, debugr$Nplace) == 'N') {
+        if (stringr::str_sub(tmp, debugr$Dplace, debugr$Dplace) == 'D') {
             colorpair = rcurses.color_pair(3)
         } else {
             colorpair = rcurses.color_pair(2)
         }
-    } else if (str_sub(tmp, debugr$Dplace, debugr$Dplace) == 'D') {
+    } else if (stringr::str_sub(tmp, debugr$Dplace, debugr$Dplace) == 'D') {
         colorpair = rcurses.color_pair(1)
     } else {
         colorpair = rcurses.color_pair(0)
@@ -337,7 +337,7 @@ updatenext <- function(newnextlinenum) {
 # blank out the given line in the current window
 # winrow is 1-based
 blankline <- function(winrow) {
-    writeline(winrow,str_dup(' ', debugr$winwidth-1))
+    writeline(winrow,stringr::str_dup(' ', debugr$winwidth-1))
 }
 
 # when we hit a pause, or exit the R debugger, this function will
@@ -351,19 +351,19 @@ checkdbgsink <- function() {
     # use any() to avoid a warning.
     if (!any(is.na(found))) {
         sinkline = found[2]
-        colonplace = str_locate(sinkline, ":")[1]
+        colonplace = stringr::str_locate(sinkline, ":")[1]
         if (found[1] == 'debug') {
-            linenumstart = str_locate(sinkline, "#")[1] + 1
+            linenumstart = stringr::str_locate(sinkline, "#")[1] + 1
             # get file name before # sign
-            # srcfile = str_sub(sinkline, 10, linenumstart-2)
+            # srcfile = stringr::str_sub(sinkline, 10, linenumstart-2)
             if (is.na(colonplace))  # if no colon found on this line
-                linenum = as.integer(str_sub(sinkline, linenumstart))
+                linenum = as.integer(stringr::str_sub(sinkline, linenumstart))
             else
-                linenum = as.integer(str_sub(sinkline, linenumstart, colonplace-1))
+                linenum = as.integer(stringr::str_sub(sinkline, linenumstart, colonplace-1))
             if (iscondbphere(linenum)) {  # if conditional breakpoint
                 # Print the condition of the conditional breakpoint so we
                 # can its value (true/false).
-                doprint(str_c('p ',debugr$bpconds[linenum]))
+                doprint(stringr::str_c('p ',debugr$bpconds[linenum]))
 
                 # go back to start of file to read all lines, so we can read
                 # last line (doesn't seem to be a cleaner way).
@@ -373,7 +373,7 @@ checkdbgsink <- function() {
                 lastline = sinkfilelines[length(sinkfilelines)]
 
                 # if bp condition doesn't hold, do not stop at it
-                if (!is.na(str_locate(lastline, "FALSE")[1])) {
+                if (!is.na(stringr::str_locate(lastline, "FALSE")[1])) {
                     if (debugr$prevcmd != "n") {
                         dostep("c")
                         return()
@@ -399,11 +399,11 @@ dostep <- function(cmd) {
         # call, so function name is the first non-whitespace char in the
         # line, and ')' immediately follows the function name
         currline <- debugr$srclines[debugr$nextlinenum]
-        currline <- str_sub(currline, (debugr$Dplace+1))  # remove line number etc.
-        ftnpart <- str_trim(currline, "left")  # remove leading whitespace
-        parenplace <- str_locate(ftnpart, '\\(')[1]
-        ftnname <- str_sub(ftnpart, 1, parenplace-1)
-        cmd = str_c("debugonce(", ftnname, "); c")
+        currline <- stringr::str_sub(currline, (debugr$Dplace+1))  # remove line number etc.
+        ftnpart <- stringr::str_trim(currline, "left")  # remove leading whitespace
+        parenplace <- stringr::str_locate(ftnpart, '\\(')[1]
+        ftnname <- stringr::str_sub(ftnpart, 1, parenplace-1)
+        cmd = stringr::str_c("debugonce(", ftnname, "); c")
     }
     sendtoscreen(cmd)
     Sys.sleep(0.25)
@@ -424,7 +424,7 @@ dof <- function() {
 dorun <- function(cmd) {
     # if function to call was specified, run it; otherwise, run the last one
     if (cmd != "rn") {
-        debugr$debuggeecall <- str_split(cmd, " ", simplify=TRUE)[2]
+        debugr$debuggeecall <- stringr::str_split(cmd, " ", simplify=TRUE)[2]
     }
     sendtoscreen(debugr$debuggeecall)
     Sys.sleep(0.5)
@@ -435,12 +435,12 @@ dorun <- function(cmd) {
 # e.g. with k = 2, inputting 'a + b + c' returns 'b + c'
 removefirsttokens <- function(k, s) {
     # Start the substring after the kth whitespace character.
-    startspliceindex = str_locate_all(s, " ")[[1]][k,1] + 1
-    return(str_sub(s, startspliceindex))
+    startspliceindex = stringr::str_locate_all(s, " ")[[1]][k,1] + 1
+    return(stringr::str_sub(s, startspliceindex))
 }
 
 doprint <- function(cmd) {
-    pcmd = str_split(cmd, " ", simplify=TRUE)[1]
+    pcmd = stringr::str_split(cmd, " ", simplify=TRUE)[1]
     expressiontoprint = removefirsttokens(1,cmd)
     if (pcmd == 'pc') {
         sendtoscreen(expressiontoprint)
@@ -449,24 +449,24 @@ doprint <- function(cmd) {
 
     # Print the line in screen, then retrieve the line that was printed
     # from the sink.
-    tosend = str_c("cat(", expressiontoprint, ",fill=TRUE)")
+    tosend = stringr::str_c("cat(", expressiontoprint, ",fill=TRUE)")
     sendtoscreen(tosend)
     Sys.sleep(0.25)  # give time for screen output to be written to dbgsink
     ds = file("dbgsink", "r")
     printedline = tail(readLines(ds, n=-1), 1)
-    toprint = str_c(expressiontoprint, " = ", printedline)
+    toprint = stringr::str_c(expressiontoprint, " = ", printedline)
     writeline(debugr$msgline,toprint,rcurses.color_pair(0))
     close(ds)
 }
 
 # print R expression after each n or d cmd
 dopap <- function(cmd) {
-    pcmd = str_split(cmd," ",simplify=TRUE)[1]
+    pcmd = stringr::str_split(cmd," ",simplify=TRUE)[1]
     expressiontoprint = removefirsttokens(1,cmd)
     if (pcmd == 'pcap') {
-        debugr$papcmd <- str_c('pc ', expressiontoprint)
+        debugr$papcmd <- stringr::str_c('pc ', expressiontoprint)
     } else {
-        debugr$papcmd <- str_c('p ', expressiontoprint)
+        debugr$papcmd <- stringr::str_c('p ', expressiontoprint)
     }
     doprint(debugr$papcmd)
 }
@@ -476,7 +476,7 @@ dopap <- function(cmd) {
 # returns NA.
 findftnnamebylinenum <- function(linenum) {
     srcline <- debugr$srclines[linenum]
-    srcline <- str_split(srcline, " ", simplify=TRUE)
+    srcline <- stringr::str_split(srcline, " ", simplify=TRUE)
     fnamepos <- match("<-", srcline) - 1  # func name is 1 token before <-
     if (is.na(fnamepos)) {
         return(NA)
@@ -510,7 +510,7 @@ findenclosingftn <- function(linenum) {
     while (i > 0) {
         line = debugr$srclines[i]
         # if function on this line
-        if (!is.na(str_locate(line,"<- function")[1])) {
+        if (!is.na(stringr::str_locate(line,"<- function")[1])) {
             fname = findftnnamebylinenum(i)
             if (!is.na(fname))
                 return(fname)
@@ -529,7 +529,7 @@ stringstartswithnumber <- function(str) {
 # line number or function name; for now, assumes blanks surround '<-' in
 # the assignment line in which the function is defined
 dodf <- function(cmd) {
-    cmdparts <- str_split(cmd, " ", simplify=TRUE)
+    cmdparts <- stringr::str_split(cmd, " ", simplify=TRUE)
     fspec <- cmdparts[2]
 
     # Determine both function line number and name.
@@ -543,9 +543,9 @@ dodf <- function(cmd) {
 
     # Update the function's debug flag.
     if (cmdparts[1] == "df") {
-        tosend = str_c("debug(", fname, ")")
+        tosend = stringr::str_c("debug(", fname, ")")
     } else {
-        tosend = str_c("undebug(", fname, ")")
+        tosend = stringr::str_c("undebug(", fname, ")")
     }
     sendtoscreen(tosend)
 
@@ -571,8 +571,8 @@ dodf <- function(cmd) {
 # call undebug() on all functions currently in debug state
 doudfa <- function() {
     for (i in 1:length(debugr$srclines)) {
-        if (str_sub(debugr$srclines[i], debugr$Dplace, debugr$Dplace) == "D") {
-            dodf(str_c("udf ", i))
+        if (stringr::str_sub(debugr$srclines[i], debugr$Dplace, debugr$Dplace) == "D") {
+            dodf(stringr::str_c("udf ", i))
         }
     }
 }
@@ -588,10 +588,10 @@ iscondbphere <- function(lineno) {
 # setBreakpoint() will be called on the requested source line, specified by
 # (1-based) line number in the current source file
 dobp <- function(cmd) {
-    cmdparts = str_split(cmd, ' ', simplify=TRUE)
+    cmdparts = stringr::str_split(cmd, ' ', simplify=TRUE)
     linenum = cmdparts[2]
     filename = debugr$currsrcfilename
-    tosend = str_c("setBreakpoint(\'", filename, "\',", linenum, ")")
+    tosend = stringr::str_c("setBreakpoint(\'", filename, "\',", linenum, ")")
     sendtoscreen(tosend)
     # mark the src line D for "debug"
     fline = as.integer(linenum)
@@ -608,12 +608,12 @@ dobp <- function(cmd) {
 }
 
 doubp <- function(cmd) {
-    cmdparts = str_split(cmd, ' ', simplify=TRUE)
+    cmdparts = stringr::str_split(cmd, ' ', simplify=TRUE)
     linenum = cmdparts[2]
     ftnname = findenclosingftn(as.integer(linenum))
-    tosend = str_c("untrace(", ftnname, ")")
+    tosend = stringr::str_c("untrace(", ftnname, ")")
     # unfortunately, untrace() does an auto undebug(), so need to update
-    dodf(str_c("udf ", ftnname))
+    dodf(stringr::str_c("udf ", ftnname))
     sendtoscreen(tosend)
     fline = as.integer(linenum)
     rplcsrcline(fline,debugr$Dplace,' ')
@@ -630,7 +630,7 @@ doubp <- function(cmd) {
 
 doreloadsrc <- function(cmd) {
     doudfa()
-    loadsrc = str_c("source(\'", debugr$currsrcfilename, "\')")
+    loadsrc = stringr::str_c("source(\'", debugr$currsrcfilename, "\')")
     sendtoscreen(loadsrc)
     inputsrc(debugr$currsrcfilename)
 }
@@ -651,8 +651,8 @@ dopls <- function() {
 }
 
 dopenv <- function(cmd) {
-    e = str_split(cmd," ",simplify=TRUE)[2]  # the environment to print contents of
-    tosend = str_c("ls.str(", e, ")")
+    e = stringr::str_split(cmd," ",simplify=TRUE)[2]  # the environment to print contents of
+    tosend = stringr::str_c("ls.str(", e, ")")
     sendtoscreen(tosend)
 }
 
@@ -687,7 +687,7 @@ dohelp <- function() {
         # delete the comment signs (i.e. delete first two characters of each file,
         # a comment sign and a space)
         for (i in 1:length(hflines)) {
-            hflines[i] = str_sub(hflines[i], 3)
+            hflines[i] = stringr::str_sub(hflines[i], 3)
         }
         hfout = file("/tmp/debugRhelp","w")
         cat(hflines,sep="\n",file=hfout)
@@ -812,15 +812,15 @@ debugR <- function(filename) {
         tmp <- (debugr$winwidth - 1 - nchar(' h for help ')) / 2
 
         # put the help bar on the screen
-        helpbartext <- str_c(str_dup(' ',tmp),' h for help ',str_dup(' ',tmp))
+        helpbartext <- stringr::str_c(stringr::str_dup(' ',tmp),' h for help ',stringr::str_dup(' ',tmp))
         writeline(debugr$helpbarindex,helpbartext,rcurses.A_REVERSE)
 
         # clear user's previous input
-        writeline(debugr$userinputindex,str_dup(' ',debugr$winwidth - 1))
+        writeline(debugr$userinputindex,stringr::str_dup(' ',debugr$winwidth - 1))
 
         fullcmd <- getusercmd()
         # specifies the command without params
-        cmd = str_split(fullcmd," ",simplify=TRUE)[1]
+        cmd = stringr::str_split(fullcmd," ",simplify=TRUE)[1]
 
         # clear error msg after user input (i.e. after they saw it)
         errormsg("")
@@ -919,12 +919,12 @@ debugR <- function(filename) {
 
         # (re)load source file
         else if (cmd == 'ls') {
-            cmdsplit = str_split(cmd, ' ', simplify=TRUE)
+            cmdsplit = stringr::str_split(cmd, ' ', simplify=TRUE)
             if (length(cmdsplit) > 1) {  # if file name given
                 debugr$currsrcfilename <- cmdsplit[2]
             }
             initsrcthings()
-            loadsrc = str_c("source(\'",debugr$currsrcfilename,"\')")
+            loadsrc = stringr::str_c("source(\'",debugr$currsrcfilename,"\')")
             sendtoscreen(loadsrc)
         }
 
