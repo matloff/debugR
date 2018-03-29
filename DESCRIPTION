@@ -11,7 +11,7 @@ Maintainer: Norm Matloff <normmatloff@gmail.com>
 Description: Sophisticated debugging tool for R code, with advanced and
              novel features. General tutorial on techniques for debugging.
 Imports: rcurses, stringr
-Depends: stats, utils
+Depends: stats,utils
 ByteCompile: yes
 NeedsCompilation: no
 License: GPL (>= 2)
