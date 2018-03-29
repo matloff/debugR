@@ -16,4 +16,4 @@ ByteCompile: yes
 NeedsCompilation: no
 License: GPL (>= 2)
 URL: https://github.com/matloff/debugR
-BugReports: https://github.com/matloffdebugR/issues
+BugReports: https://github.com/matloff/debugR/issues
