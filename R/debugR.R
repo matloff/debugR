@@ -27,8 +27,9 @@
 suppressMessages(library(rcurses))
 library(stringr)
 
-# all globals packaged here
-debugr <- new.env()
+# all globals packaged here,
+# in an evironment as recommended by CRAN (http://r-pkgs.had.co.nz/check.html)
+debugr <- new.env(parent = emptyenv())
 debugr$scrn <- NULL  # will point to window object
 debugr$row <- NULL  # current row position of cursor within window
 debugr$src <- NULL  # handle for the current source file
@@ -730,12 +731,12 @@ initcursesthings <- function() {
     rcurses.bkgd(debugr$scrn,' ',rcurses.color_pair(8))
 
     # leave 3 lines at the bottom.
-    debugr$srcpanellen <- rcurses.LINES - 3
-    debugr$helpbarindex <- rcurses.LINES - 2
-    debugr$userinputindex <- rcurses.LINES - 1
-    debugr$msgline <- rcurses.LINES  # last line
+    debugr$srcpanellen <- rcurses.LINES() - 3
+    debugr$helpbarindex <- rcurses.LINES() - 2
+    debugr$userinputindex <- rcurses.LINES() - 1
+    debugr$msgline <- rcurses.LINES()  # last line
 
-    debugr$winwidth <- rcurses.COLS
+    debugr$winwidth <- rcurses.COLS()
 
     
     
