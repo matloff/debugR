@@ -653,7 +653,12 @@ dopls <- function() {
 
 dopenv <- function(cmd) {
     e = stringr::str_split(cmd," ",simplify=TRUE)[2]  # the environment to print contents of
-    tosend = stringr::str_c("ls.str(", e, ")")
+    if (is.na(e))  {
+        # if no environment given, print current environment
+        tosend = stringr::str_c("ls.str()")
+    } else {
+        tosend = stringr::str_c("ls.str(envir=", e, ")")
+    }
     sendtoscreen(tosend)
 }
 
