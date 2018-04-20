@@ -54,6 +54,7 @@ debugr$prevcmd <- ""  # last user command
 debugr$helpfile <- FALSE
 debugr$Nplace <- -1
 debugr$Dplace <- -1
+debugr$isbrowsing <- FALSE  # TRUE if in browser() mode
 
 # debugging function, prints variable name with variable value
 p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
@@ -327,6 +328,7 @@ updatenext <- function(newnextlinenum) {
     }
     debugr$nextlinenum <- newnextlinenum
     rplcsrcline(newnextlinenum,debugr$Nplace,'N')
+    debugr$isbrowsing <- TRUE
     if (inwin(newnextlinenum)) {
         winrow = newnextlinenum - debugr$firstdisplayedlineno + 1
         updatecolor(winrow,newnextlinenum)
@@ -386,6 +388,7 @@ checkdbgsink <- function() {
             linenum = debugr$nextlinenum
             winrow = linenum - debugr$firstdisplayedlineno + 1
             rplcsrcline(linenum,debugr$Nplace,' ')  # there's no longer a "next" line
+            debugr$isbrowsing <- FALSE
             writeline(winrow,debugr$srclines[linenum],rcurses.color_pair(0))
             debugr$papcmd <- ''
             blankline(debugr$srcpanellen + 3)
@@ -667,6 +670,7 @@ doquitbrowser <- function() {
     oldnextlinenum = debugr$nextlinenum
     if (!is.na(oldnextlinenum)) {
         rplcsrcline(oldnextlinenum,debugr$Nplace,' ')
+        debugr$isbrowsing <- FALSE
         if (inwin(oldnextlinenum)) {
             winrow = oldnextlinenum - debugr$firstdisplayedlineno + 1
             updatecolor(winrow,oldnextlinenum)
@@ -776,7 +780,9 @@ getusercmd <- function() {
 
 # Terminates screen terminal.
 endscreen <- function() {
-    sendtoscreen('quit()')
+    if (debugr$isbrowsing == TRUE)
+        sendtoscreen('Q')  # exit browser() mode
+    sendtoscreen('quit()')  # exit R
     sendtoscreen('killall screen')
     sendtoscreen('screen -wipe')
     sendtoscreen('exit')
