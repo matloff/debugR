@@ -219,18 +219,8 @@ sendtoscreen <- function(cmd) {
 
 # initialize various globals dealing with the source file
 initsrcthings <- function() {
-    # w(match.call()[[1]])
-
-    
     debugr$nextlinenum <- 1
-
-    
     inputsrc(debugr$currsrcfilename)
-
-    
-    rplcsrcline(1,debugr$Nplace,'N')
-
-    
     dispsrc(debugr$nextlinenum)
 
     # manadatory return statement
@@ -333,6 +323,8 @@ updatenext <- function(newnextlinenum) {
         winrow = newnextlinenum - debugr$firstdisplayedlineno + 1
         updatecolor(winrow,newnextlinenum)
     } else {
+        # If the next line is out of src code view,
+        # scroll so that this line is at top of view.
         dispsrc(newnextlinenum)
     }
 }
@@ -362,10 +354,11 @@ checkdbgsink <- function() {
             if (is.na(colonplace))  # if no colon found on this line
                 linenum = as.integer(stringr::str_sub(sinkline, linenumstart))
             else
-                linenum = as.integer(stringr::str_sub(sinkline, linenumstart, colonplace-1))
+                linenum = as.integer(stringr::str_sub(sinkline, linenumstart,
+                    colonplace-1))
             if (iscondbphere(linenum)) {  # if conditional breakpoint
                 # Print the condition of the conditional breakpoint so we
-                # can its value (true/false).
+                # can check its value (true/false).
                 doprint(stringr::str_c('p ',debugr$bpconds[linenum]))
 
                 # go back to start of file to read all lines, so we can read
@@ -384,7 +377,7 @@ checkdbgsink <- function() {
                 }
             }
             updatenext(linenum)
-        } else if (found[1] == 'exiting') {
+        } else if (found[1] == 'exiting') {  # debugging stopped due to function end
             linenum = debugr$nextlinenum
             winrow = linenum - debugr$firstdisplayedlineno + 1
             rplcsrcline(linenum,debugr$Nplace,' ')  # there's no longer a "next" line
@@ -394,6 +387,14 @@ checkdbgsink <- function() {
             blankline(debugr$srcpanellen + 3)
             rcurses.refresh(debugr$scrn)
         }
+    } else {  # debugging stopped due to error within function
+        # Clear the 'N' on the former next line.
+        oldnextlinenum = debugr$nextlinenum
+        rplcsrcline(debugr$nextlinenum,debugr$Nplace,' ')
+        debugr$isbrowsing <- FALSE
+        winrow = oldnextlinenum - debugr$firstdisplayedlineno + 1
+        writeline(winrow,debugr$srclines[oldnextlinenum],
+            rcurses.color_pair(0))
     }
 }
 
