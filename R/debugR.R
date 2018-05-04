@@ -116,8 +116,12 @@ dispsrc <- function(srcstartrow) {
 # list debugr$srclines, with each source file being prepended by the line
 # number
 inputsrc <- function(filename) {
-    lns <- readLines(filename)
-
+    lns <- try(readLines(filename))
+    if (class(lns) == "try-error") {
+        endscreen()
+        cleancursesthings()
+        stop("Failed to open file.")
+    }
     
     debugr$srclen <- length(lns)
 
