@@ -533,6 +533,10 @@ dodf <- function(cmd) {
     } else {  # if function specified by name
         fname = fspec
         fline = findftnlinenumbyname(fname)
+        if (is.na(fline)) {  # couldn't find line number of this function
+            errormsg(str_c("Nonexistent function name: ",fname))
+            return()
+        }
     }
 
     # Update the function's debug flag.
