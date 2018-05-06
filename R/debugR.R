@@ -54,6 +54,7 @@ debugr$prevcmd <- ""  # last user command
 debugr$helpfile <- FALSE
 debugr$Nplace <- -1
 debugr$Dplace <- -1
+debugr$isbrowsing <- FALSE  # TRUE if in browser() mode
 
 # debugging function, prints variable name with variable value
 p <- function(x) { print(paste0(deparse(substitute(x)),': ',x)) }
@@ -76,9 +77,6 @@ writeline <- function(winrow,whattopaint,colorpair=NULL) {
 
     # Paint the line to the console with rcurses.
     rcurses.addstr(debugr$scrn,whattopaint,winrow-1,0,colorpair)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # this function displays the current source file, starting at the top of
@@ -106,17 +104,18 @@ dispsrc <- function(srcstartrow) {
     }
     debugr$firstdisplayedlineno <- srcstartrow
     rcurses.refresh(debugr$scrn)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # this function reads in the source file from disk, and copies it to the
 # list debugr$srclines, with each source file being prepended by the line
 # number
 inputsrc <- function(filename) {
-    lns <- readLines(filename)
-
+    lns <- try(readLines(filename))
+    if (class(lns) == "try-error") {
+        endscreen()
+        cleancursesthings()
+        stop("Failed to open file.")
+    }
     
     debugr$srclen <- length(lns)
 
@@ -162,9 +161,6 @@ inputsrc <- function(filename) {
 
     
     dispsrc(1)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # utility; in string s at position k, replace by string r, presumed to
@@ -190,9 +186,6 @@ rplc <- function(s,k,r) {
 rplcsrcline <- function(lineno,linepos,s) {
     # add s into source line lineno at position linepos
     debugr$srclines[lineno] <- rplc(debugr$srclines[lineno],linepos,s)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # deletes newline character at the end of s, returning result
@@ -218,22 +211,9 @@ sendtoscreen <- function(cmd) {
 
 # initialize various globals dealing with the source file
 initsrcthings <- function() {
-    # w(match.call()[[1]])
-
-    
     debugr$nextlinenum <- 1
-
-    
     inputsrc(debugr$currsrcfilename)
-
-    
-    rplcsrcline(1,debugr$Nplace,'N')
-
-    
     dispsrc(debugr$nextlinenum)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # initializes debugging operations; tells R to call sink(), setting up a
@@ -327,10 +307,13 @@ updatenext <- function(newnextlinenum) {
     }
     debugr$nextlinenum <- newnextlinenum
     rplcsrcline(newnextlinenum,debugr$Nplace,'N')
+    debugr$isbrowsing <- TRUE
     if (inwin(newnextlinenum)) {
         winrow = newnextlinenum - debugr$firstdisplayedlineno + 1
         updatecolor(winrow,newnextlinenum)
     } else {
+        # If the next line is out of src code view,
+        # scroll so that this line is at top of view.
         dispsrc(newnextlinenum)
     }
 }
@@ -360,10 +343,11 @@ checkdbgsink <- function() {
             if (is.na(colonplace))  # if no colon found on this line
                 linenum = as.integer(stringr::str_sub(sinkline, linenumstart))
             else
-                linenum = as.integer(stringr::str_sub(sinkline, linenumstart, colonplace-1))
+                linenum = as.integer(stringr::str_sub(sinkline, linenumstart,
+                    colonplace-1))
             if (iscondbphere(linenum)) {  # if conditional breakpoint
                 # Print the condition of the conditional breakpoint so we
-                # can its value (true/false).
+                # can check its value (true/false).
                 doprint(stringr::str_c('p ',debugr$bpconds[linenum]))
 
                 # go back to start of file to read all lines, so we can read
@@ -382,15 +366,24 @@ checkdbgsink <- function() {
                 }
             }
             updatenext(linenum)
-        } else if (found[1] == 'exiting') {
+        } else if (found[1] == 'exiting') {  # debugging stopped due to function end
             linenum = debugr$nextlinenum
             winrow = linenum - debugr$firstdisplayedlineno + 1
             rplcsrcline(linenum,debugr$Nplace,' ')  # there's no longer a "next" line
+            debugr$isbrowsing <- FALSE
             writeline(winrow,debugr$srclines[linenum],rcurses.color_pair(0))
             debugr$papcmd <- ''
             blankline(debugr$srcpanellen + 3)
             rcurses.refresh(debugr$scrn)
         }
+    } else {  # debugging stopped due to error within function
+        # Clear the 'N' on the former next line.
+        oldnextlinenum = debugr$nextlinenum
+        rplcsrcline(debugr$nextlinenum,debugr$Nplace,' ')
+        debugr$isbrowsing <- FALSE
+        winrow = oldnextlinenum - debugr$firstdisplayedlineno + 1
+        writeline(winrow,debugr$srclines[oldnextlinenum],
+            rcurses.color_pair(0))
     }
 }
 
@@ -540,6 +533,10 @@ dodf <- function(cmd) {
     } else {  # if function specified by name
         fname = fspec
         fline = findftnlinenumbyname(fname)
+        if (is.na(fline)) {  # couldn't find line number of this function
+            errormsg(str_c("Nonexistent function name: ",fname))
+            return()
+        }
     }
 
     # Update the function's debug flag.
@@ -667,6 +664,7 @@ doquitbrowser <- function() {
     oldnextlinenum = debugr$nextlinenum
     if (!is.na(oldnextlinenum)) {
         rplcsrcline(oldnextlinenum,debugr$Nplace,' ')
+        debugr$isbrowsing <- FALSE
         if (inwin(oldnextlinenum)) {
             winrow = oldnextlinenum - debugr$firstdisplayedlineno + 1
             updatecolor(winrow,oldnextlinenum)
@@ -746,9 +744,6 @@ initcursesthings <- function() {
     
     
     rcurses.refresh(debugr$scrn)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 cleancursesthings <- function() {
@@ -776,7 +771,9 @@ getusercmd <- function() {
 
 # Terminates screen terminal.
 endscreen <- function() {
-    sendtoscreen('quit()')
+    if (debugr$isbrowsing == TRUE)
+        sendtoscreen('Q')  # exit browser() mode
+    sendtoscreen('quit()')  # exit R
     sendtoscreen('killall screen')
     sendtoscreen('screen -wipe')
     sendtoscreen('exit')
@@ -788,7 +785,6 @@ debugR <- function(filename) {
     if (tmp == 0) {
         cat('rdebug screen running\n')
         cat('kill screen process, then run "screen -wipe"\n')
-        return(NULL)
     }
 
     # start "screen, with name 'rdebug' for now
