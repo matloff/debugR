@@ -1,3 +1,5 @@
+# Example for trying out debugR.
+# usage: debugR("test.R")
 
 f <- function() {
    sum <- 0
