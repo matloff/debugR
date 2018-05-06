@@ -779,6 +779,31 @@ endscreen <- function() {
     sendtoscreen('exit')
 }
 
+# Calls browser() if given condition is false, and allows user to inspect
+# the given environment, with some helpful suggestions. A more experienced
+# user may prefer to use browser(expr=(!condition)) rather than
+# assert(condition,...), but both allow inspection of the execution
+# environment of the caller of assert().
+#
+# condition: only call browser if FALSE.
+# env: environment to allow browser() to inspect. As the
+# contained call to browser() inspects assert()'s execution environment
+# (i.e. condition and env), we need the env parameter so that the
+# calling envirnoment can be inspected, so that the caller of assert()
+# can figure out what went wrong. Usually, one would pass environment(),
+# e.g. assert(someCondition, env=environment()).
+assert <- function(condition, env) {
+    if (!condition) {
+        # Helpful messages for the (assumed beginner) programmer.
+        message("Use `where` to see the call stack.")
+        message("Use `ls(env)` or `ls.str(env)` to see the variables in \
+            the caller of assert().")
+        message("Use `env$varName` to see varName's value.")
+
+        browser()
+    }
+}
+
 debugR <- function(filename) {
     # check for existing 'screen' sessions with name 'rdebug'
     tmp <- system('screen -ls | grep rdebug')

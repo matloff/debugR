@@ -4,4 +4,4 @@ import(stats,utils,rcurses,stringr)
 importFrom("methods", "new")
 
 export(debugR)
- 
+export(assert)
