@@ -77,9 +77,6 @@ writeline <- function(winrow,whattopaint,colorpair=NULL) {
 
     # Paint the line to the console with rcurses.
     rcurses.addstr(debugr$scrn,whattopaint,winrow-1,0,colorpair)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # this function displays the current source file, starting at the top of
@@ -107,9 +104,6 @@ dispsrc <- function(srcstartrow) {
     }
     debugr$firstdisplayedlineno <- srcstartrow
     rcurses.refresh(debugr$scrn)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # this function reads in the source file from disk, and copies it to the
@@ -167,9 +161,6 @@ inputsrc <- function(filename) {
 
     
     dispsrc(1)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # utility; in string s at position k, replace by string r, presumed to
@@ -195,9 +186,6 @@ rplc <- function(s,k,r) {
 rplcsrcline <- function(lineno,linepos,s) {
     # add s into source line lineno at position linepos
     debugr$srclines[lineno] <- rplc(debugr$srclines[lineno],linepos,s)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # deletes newline character at the end of s, returning result
@@ -226,9 +214,6 @@ initsrcthings <- function() {
     debugr$nextlinenum <- 1
     inputsrc(debugr$currsrcfilename)
     dispsrc(debugr$nextlinenum)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 # initializes debugging operations; tells R to call sink(), setting up a
@@ -755,9 +740,6 @@ initcursesthings <- function() {
     
     
     rcurses.refresh(debugr$scrn)
-
-    # manadatory return statement
-    return(NULL)
 }
 
 cleancursesthings <- function() {
@@ -799,7 +781,6 @@ debugR <- function(filename) {
     if (tmp == 0) {
         cat('rdebug screen running\n')
         cat('kill screen process, then run "screen -wipe"\n')
-        return(NULL)
     }
 
     # start "screen, with name 'rdebug' for now
