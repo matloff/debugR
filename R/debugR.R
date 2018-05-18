@@ -49,6 +49,7 @@ debugr$helpbarindex <- -1  # 1-based row index saying where to put the helpbar
 debugr$userinputindex <- -1  # 1-based row index saying where to put user input
 debugr$msgline <- NULL  # 1-based row index saying where to put messages on window
 debugr$ds <- NULL  # file handle for dbgsink file
+debugr$eds <- NULL  # file handle for dbgerrorsink file
 debugr$bpconds <- c()  # dictionary of breakpoints
 debugr$prevcmd <- ""  # last user command
 debugr$helpfile <- FALSE
@@ -209,6 +210,23 @@ sendtoscreen <- function(cmd) {
     system(tosend)
 }
 
+checkdbgerrorsink <- function() {
+    # Position the connection to where it's already positioned.
+    # Oddly, I seem to have to do this seek() command, or else debugr$eds
+    # won't recognize any lines that have been appended to the file since
+    # the last time readLines() was called on debugr$eds.
+    seek(debugr$eds, where=seek(debugr$eds), origin="start")
+
+    # Should never be more than one line, assuming:
+    # a) an R command produces at most one error message.
+    # b) the error debug sink is read from each time an R
+    # command is sent to screen.
+    line = readLines(debugr$eds, n=-1)
+
+    if (length(line) > 0)
+        errormsg(line)
+}
+
 # initialize various globals dealing with the source file
 initsrcthings <- function() {
     debugr$nextlinenum <- 1
@@ -224,8 +242,13 @@ initrdebug <- function() {
     # a server that is run here; the throttling then probably won't be
     # necessary, and conditional breakpoint will be faster
     file.create('dbgsink')
-    sendtoscreen("sink(\'dbgsink\',split=T)")
+    sendtoscreen("sink(\'dbgsink\',type=\'output\',split=T)")
     debugr$ds <- file("dbgsink", "r")
+
+    file.create('dbgerrorsink')
+    sendtoscreen("dbgerrorsink <- file(\'dbgerrorsink\',open=\'w\')")
+    sendtoscreen("sink(dbgerrorsink,type=\'message\')")
+    debugr$eds <- file("dbgerrorsink", "r")
 }
 
 # Returns all the latest lines in the sink file that have not yet been
@@ -769,14 +792,24 @@ getusercmd <- function() {
     }
 }
 
+setupscreen <- function() {
+    # start "screen, with name 'rdebug' for now
+    system('xterm -e "screen -S \'rdebug\'" &')
+    # start R within screen
+    Sys.sleep(1)
+    sendtoscreen('R --no-save -q')
+}
+
 # Terminates screen terminal.
 endscreen <- function() {
     if (debugr$isbrowsing == TRUE)
         sendtoscreen('Q')  # exit browser() mode
-    sendtoscreen('quit()')  # exit R
-    sendtoscreen('killall screen')
-    sendtoscreen('screen -wipe')
+    sendtoscreen("sink(type=\'message\')")  # close error sink
+    sendtoscreen("close(dbgerrorsink)")  # close error sink file
+    sendtoscreen('quit()')
     sendtoscreen('exit')
+    system('killall screen')
+    system('screen -wipe')
 }
 
 # Calls browser() if given condition is false, and allows user to inspect
@@ -812,11 +845,7 @@ debugR <- function(filename) {
         cat('kill screen process, then run "screen -wipe"\n')
     }
 
-    # start "screen, with name 'rdebug' for now
-    system('xterm -e "screen -S \'rdebug\'" &')
-    # start R within screen
-    Sys.sleep(1)
-    sendtoscreen('R --no-save -q')
+    setupscreen()
     initcursesthings()
 
     # save the file name in a global variable
@@ -976,6 +1005,11 @@ debugR <- function(filename) {
         # command not recognized
         else {
             errormsg('no such command')
+        }
+
+        # Debug error sink may not yet be set up.
+        if (!is.null(debugr$eds)) {
+            checkdbgerrorsink()  # report any error in screen to user
         }
 
         # save previous command
