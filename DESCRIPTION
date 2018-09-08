@@ -1,4 +1,4 @@
-Package: debugR
+Package: dbgR
 Version: 0.1
 Title: R Debugging -- a Tool and a Tutorial
 Authors@R: c(person("Norm", "Matloff", email = "normmatloff@gmail.com",
