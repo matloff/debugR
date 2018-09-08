@@ -37,7 +37,7 @@ f <- function() {
 <li> In an R console, type
 
 ```R
-dbgR('test.R')
+debugR('test.R')
 ```
 
 <li> In the command area (space at the bottom of the window type)
@@ -105,5 +105,39 @@ Now consider the 'n' command in **dbgR**.  What happens when the
 user issues that command is that **dbgR** write the string 'n\n' to
 the R window.  This is done via the Unix **screen** utility.
 
-<img src = http://heather.cs.ucdavis.edu/dbgRcartoon.png>
+## Command List
+
+Enter key:  repeat last command (should use this a lot, e.g. for n)
+  
+rn expr:  Run the given R expression; if no expression, use the previous Run
+  
+n,s,c:  go to Next line/Step into function/Continue until next pause
+  
+df f, udf f:  Debug/Undebug f()
+<br>udfa:  Undebug all functions
+  
+bp linenum:  set Breakpoint at given line
+<br>bp linenum expr:  set Breakpoint at given line, conditional on expr
+<br>ubp linenum:  cancel Breakpoint at the given line
+  
+p expr:  Print expression
+<br>pap expr:  Print expression at each Pause (only one expression at a time)
+<br>upap:  cancel pap
+  
+pc expr:  Print expression to Console
+<br>pcap expr:  Print expression to Console at each Pause 
+<br>upcap:  cancel pcap
+
+pls: print local variables (including args) of the current function
+<br>penv e: print contents of the environment e
+
+down: scroll down in debugger window
+<br>up: scroll up in debugger window
+  
+Q:  quit R's debugger
+<br>es:  exit debugR program
+  
+ls srcfile:  (re)load source file; if no file given, use the previous one
+   
+<img src = http://heather.cs.ucdavis.edu/debugRcartoon.png>
 

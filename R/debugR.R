@@ -702,7 +702,8 @@ dohelp <- function() {
         # open this R source file, find the help section, make a tmp
         # file from it, and have R invoke the user's favorite text editor
         # on it.
-        hf = file("R/debugR.R", "r")  # hardcode file name, for now
+        ## hf = file("R/debugR.R", "r")  # hardcode file name, for now
+        hf = system.file("R/debugR.R",package='dbgR')
         hflines = readLines(hf)
         close(hf)
         for (i in 1:length(hflines)) {
