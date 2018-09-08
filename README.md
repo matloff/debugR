@@ -1,5 +1,7 @@
 
 # dbgR:  a Debugging Tool for R
+   
+<img src = http://heather.cs.ucdavis.edu/debugRcartoon.png>
 
 This tool, **dbgR**, 
 greatly enhances the R debugging process.  R's own
@@ -20,8 +22,13 @@ Python is also required.
 
 <UL>
 
-<li> Use your text editor to create a file <strong>test.R</strong>, with
-contents
+<li> 
+
+debugR(system.file('examples/test.R',package='dbgR'))
+
+Use your text editor to create a file <strong>test.R</strong> or
+copy it from the **examples/** directory in your installed **dbgR**
+package.  If you create it yourself, it should have contents
 
 ```R
 f <- function() {
@@ -40,7 +47,13 @@ f <- function() {
 debugR('test.R')
 ```
 
-<li> In the command area (space at the bottom of the window type)
+This will create a new window, with a new instance of R running in it.
+Let's call this new one Window 1, and refer to the original one (from
+which you called **debugR**) as Window 0.  During the debugging process,
+you will primarily be working with Window 0. 
+</li> </p> 
+
+<li> In the command area (space at the bottom of Window 0 type)
 
 ```
 df f
@@ -55,19 +68,20 @@ to set the function <strong>f()</strong> to debug status.
 rn f()
 ```
 
-to run the function **f**.  (No arguments in this
-particular call, but of course you could have some for other functions.
-Any R command can be run here.)
+which instructs the tool to run ("rn") the expression **f()**.
+(No arguments in this particular call, but of course you could have 
+some for other functions.  Any R command can be run here.)  
 </li> </p> 
 
-<li> You can then type **n** for next line, **c**
-for continue, etc., rather like GDB.  Type **Q** to quit
-the browser in the R window, and **es** to leave the debugging tool.
+<li> You can then type **n** for next line, **c** for continue, etc. 
+Type **Q** to quit the browser in the R window, and **es** to 
+leave the debugging tool.
 </li> </p> 
 
 There are many other commands, e.g. conditional breakpoints, automatic
 printing of variables/expressions at each pause, etc.  Type **h** to see
-a list of all commands, which are displayed in the R window.
+a list of all commands, which are displayed in Window 1, in whatever
+text editor your R configuration uses.
 
 ## How It Works
 
@@ -138,6 +152,4 @@ Q:  quit R's debugger
 <br>es:  exit debugR program
   
 ls srcfile:  (re)load source file; if no file given, use the previous one
-   
-<img src = http://heather.cs.ucdavis.edu/debugRcartoon.png>
 
