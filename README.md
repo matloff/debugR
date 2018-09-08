@@ -1,9 +1,9 @@
 
-# debugR:  a Debugging Tool for R
+# dbgR:  a Debugging Tool for R
 
-This tool, **debugR**, 
+This tool, **dbgR**, 
 greatly enhances the R debugging process.  R's own
-built-in debugging tools are very limited, but **debugR**
+built-in debugging tools are very limited, but **dbgR**
 extends them to a rich set of commands, plus visual display of your
 execution of the debuggee.  Those who have used GDB for C/C++ will find
 many similarities, but no such background is assumed.  (Note:  RStudio,
@@ -37,7 +37,7 @@ f <- function() {
 <li> In an R console, type
 
 ```R
-debugR('test.R')
+dbgR('test.R')
 ```
 
 <li> In the command area (space at the bottom of the window type)
@@ -90,20 +90,20 @@ debug at test.R#3: sum <- 0
 Browse[2]> 
 ```
 
-Here we told R to put **f** in debug status, so when we then executed the
+Here we told R to put **f()** in debug status, so when we then executed the
 function, we entered R's browser.  Note how at each pause, the browser 
 tells us the current line in our buggy source file, lines 2 and 3 in the
-example above.  This is used by **debugR** to update its display of our
+example above.  This is used by **dbgR** to update its display of our
 source file, as follows.
 
-The R **sink** function (with the arguments used in **debugR**) copies
+The R **sink** function (with the arguments used in **dbgR**) copies
 all R output to a file.  (For those who know the Unix **tee** command,
-this is similar.)  It is then a simple matter for **debugR** to read the
-file, and then update the cursor in the **debugR** display accordingly.
+this is similar.)  It is then a simple matter for **dbgR** to read the
+file, and then update the cursor in the **dbgR** display accordingly.
 
-Now consider the **n** command in **debugR**.  What happens when the
-user issues that command is that **debugR** write the string 'n\n' to
+Now consider the 'n' command in **dbgR**.  What happens when the
+user issues that command is that **dbgR** write the string 'n\n' to
 the R window.  This is done via the Unix **screen** utility.
 
-<img src = http://heather.cs.ucdavis.edu/debugRcartoon.png>
+<img src = http://heather.cs.ucdavis.edu/dbgRcartoon.png>
 
