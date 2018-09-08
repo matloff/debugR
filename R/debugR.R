@@ -703,20 +703,20 @@ dohelp <- function() {
         # file from it, and have R invoke the user's favorite text editor
         # on it.
         ## hf = file("R/debugR.R", "r")  # hardcode file name, for now
-        hf = system.file("R/debugR.R",package='dbgR')
+        hf = system.file("help.txt",package='dbgR')
         hflines = readLines(hf)
-        close(hf)
-        for (i in 1:length(hflines)) {
-            if (hflines[i] == '# HELP SECTION')
-                break
-        }
-        # delete the non-help section
-        hflines = hflines[i:length(hflines)]
-        # delete the comment signs (i.e. delete first two characters of each file,
-        # a comment sign and a space)
-        for (i in 1:length(hflines)) {
-            hflines[i] = stringr::str_sub(hflines[i], 3)
-        }
+###         close(hf)
+###         for (i in 1:length(hflines)) {
+###             if (hflines[i] == '# HELP SECTION')
+###                 break
+###         }
+###         # delete the non-help section
+###         hflines = hflines[i:length(hflines)]
+###         # delete the comment signs (i.e. delete first two characters of each file,
+###         # a comment sign and a space)
+###         for (i in 1:length(hflines)) {
+###             hflines[i] = stringr::str_sub(hflines[i], 3)
+###         }
         hfout = file("/tmp/debugRhelp","w")
         cat(hflines,sep="\n",file=hfout)
         close(hfout)
