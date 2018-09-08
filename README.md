@@ -7,8 +7,9 @@ This tool, **dbgR**,
 greatly enhances the R debugging process.  R's own
 built-in debugging tools are very limited, but **dbgR**
 extends them to a rich set of commands, plus visual display of your
-execution of the debuggee.  Those who have used GDB for C/C++ will find
-many similarities, but no such background is assumed.  (Note:  RStudio,
+execution of the debuggee.  Those who have used the built-in R tools
+**debug()** and **browser()** will find many similarities, but no such 
+background is assumed.  (Note:  RStudio,
 ESS and statet all have nice debugging tools.)
 
 Note that **an additional of goal of this package is to teach good
