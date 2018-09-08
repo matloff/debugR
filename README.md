@@ -22,35 +22,35 @@ Python is also required.
 
 <UL>
 
-<li> 
+<li> After installing and loading **dbgR** type
 
+``` R
 debugR(system.file('examples/test.R',package='dbgR'))
+```
 
-Use your text editor to create a file <strong>test.R</strong> or
-copy it from the **examples/** directory in your installed **dbgR**
-package.  If you create it yourself, it should have contents
+in your R console.  The example file has contents
 
 ```R
 f <- function() {
    sum <- 0
+   sum2 <- 0
    for (i in 1:3) {
       sum <- sum + i
+      sum2 <- sum2 + i*i
    }
-   sum
+   c(sum,sum2)
 }
 ```
 </li> </p> 
 
-<li> In an R console, type
-
-```R
-debugR('test.R')
-```
+<li> 
 
 This will create a new window, with a new instance of R running in it.
 Let's call this new one Window 1, and refer to the original one (from
 which you called **debugR**) as Window 0.  During the debugging process,
-you will primarily be working with Window 0. 
+you will primarily be working with Window 0.  (If you happen to look at
+Window 1, you'll see that **debugR** is sending commands to the R
+session in Window 1, but you should focus on Window 0.) 
 </li> </p> 
 
 <li> In the command area (space at the bottom of Window 0 type)
@@ -73,7 +73,8 @@ which instructs the tool to run ("rn") the expression **f()**.
 some for other functions.  Any R command can be run here.)  
 </li> </p> 
 
-<li> You can then type **n** for next line, **c** for continue, etc. 
+<li> You can then type **n** for next line, **c** for continue, 
+**p** to print the value of a variable etc. 
 Type **Q** to quit the browser in the R window, and **es** to 
 leave the debugging tool.
 </li> </p> 
@@ -82,6 +83,45 @@ There are many other commands, e.g. conditional breakpoints, automatic
 printing of variables/expressions at each pause, etc.  Type **h** to see
 a list of all commands, which are displayed in Window 1, in whatever
 text editor your R configuration uses.
+
+## Command List
+
+Enter key:  repeat last command (should use this a lot, e.g. for n)
+  
+rn expr:  Run the given R expression; if no expression, use the previous Run
+  
+n,s,c:  go to Next line/Step into function/Continue until next pause
+  
+df f, udf f:  Debug/Undebug f()
+<br>udfa:  Undebug all functions
+  
+bp linenum:  set Breakpoint at given line
+<br>bp linenum expr:  set Breakpoint at given line, conditional on expr
+<br>ubp linenum:  cancel Breakpoint at the given line
+  
+p expr:  Print expression
+<br>pap expr:  Print expression at each Pause (only one expression at a time)
+<br>upap:  cancel pap
+  
+pc expr:  Print expression to Console
+<br>pcap expr:  Print expression to Console at each Pause 
+<br>upcap:  cancel pcap
+
+pls: print local variables (including args) of the current function
+<br>penv e: print contents of the environment e
+
+down: scroll down in debugger window
+<br>up: scroll up in debugger window
+  
+Q:  quit R's debugger
+<br>es:  exit debugR program
+  
+ls srcfile:  (re)load source file; if no file given, use the previous one
+
+## Deleting Old 'screen' Sessions
+
+## Known Issues
+
 
 ## How It Works
 
@@ -118,38 +158,3 @@ file, and then update the cursor in the **dbgR** display accordingly.
 Now consider the 'n' command in **dbgR**.  What happens when the
 user issues that command is that **dbgR** write the string 'n\n' to
 the R window.  This is done via the Unix **screen** utility.
-
-## Command List
-
-Enter key:  repeat last command (should use this a lot, e.g. for n)
-  
-rn expr:  Run the given R expression; if no expression, use the previous Run
-  
-n,s,c:  go to Next line/Step into function/Continue until next pause
-  
-df f, udf f:  Debug/Undebug f()
-<br>udfa:  Undebug all functions
-  
-bp linenum:  set Breakpoint at given line
-<br>bp linenum expr:  set Breakpoint at given line, conditional on expr
-<br>ubp linenum:  cancel Breakpoint at the given line
-  
-p expr:  Print expression
-<br>pap expr:  Print expression at each Pause (only one expression at a time)
-<br>upap:  cancel pap
-  
-pc expr:  Print expression to Console
-<br>pcap expr:  Print expression to Console at each Pause 
-<br>upcap:  cancel pcap
-
-pls: print local variables (including args) of the current function
-<br>penv e: print contents of the environment e
-
-down: scroll down in debugger window
-<br>up: scroll up in debugger window
-  
-Q:  quit R's debugger
-<br>es:  exit debugR program
-  
-ls srcfile:  (re)load source file; if no file given, use the previous one
-

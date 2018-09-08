@@ -3,9 +3,11 @@
 
 f <- function() {
    sum <- 0
+   sum2 <- 0
    for (i in 1:3) {
-      sum <- sum + 1
+      sum <- sum + i
+      sum2 <- sum2 + i*i
    }
-   sum
+   c(sum,sum2)
 }
 
