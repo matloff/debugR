@@ -5,3 +5,4 @@ importFrom("methods", "new")
 
 export(debugR)
 export(assert)
+export(killScreen)
