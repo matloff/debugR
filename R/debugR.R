@@ -142,10 +142,9 @@ inputsrc <- function(filename) {
         ndl <- ndigs(lineNum)
 
         
-        tmp <- rep(' ',debugr$maxdigits - ndl)
-
-        
-        tmp <- paste0(tmp,toString(lineNum),' ')
+        ### tmp <- rep(' ',debugr$maxdigits - ndl)
+        ### tmp <- paste0(tmp,toString(lineNum),' ')
+        tmp <- sprintf(paste0('%',debugr$maxdigits,'d'),lineNum)
 
         # add room for N marker for next executed and D/B for breakpoint
         tmp <- paste0(tmp,'   ')
