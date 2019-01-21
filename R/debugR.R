@@ -827,6 +827,12 @@ assert <- function(condition, env) {
     }
 }
 
+# Use this to kill 'screen' sessions, in the case where debugr
+# was closed without the 'screen' session dying.
+killScreen <- function() {
+    system('killall screen')
+}
+
 debugR <- function(filename) {
     # check for existing 'screen' sessions with name 'rdebug'
     tmp <- system('screen -ls | grep rdebug')
