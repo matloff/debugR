@@ -1,0 +1,10 @@
+Error in .External2(C_edit, name, file, title, editor) : 
+  unexpected symbol occurred on line 2
+ use a command like
+ x <- edit()
+ to recover
+Error in .External2(C_edit, name, file, title, editor) : 
+  unexpected symbol occurred on line 2
+ use a command like
+ x <- edit()
+ to recover

@@ -1,0 +1,15 @@
+debugging in: f()
+debug at ../inst/examples/test.R#4: {
+    sum <- 0
+    for (i in 1:3) {
+        sum <- sum + 1
+    }
+    sum
+}
+debug at ../inst/examples/test.R#5: sum <- 0
+debug at ../inst/examples/test.R#6: for (i in 1:3) {
+    sum <- sum + 1
+}
+debug at ../inst/examples/test.R#7: sum <- sum + 1
+[1] 0
+
